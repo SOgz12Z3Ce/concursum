@@ -1,10 +1,1 @@
-.gradle
-build/
-!gradle/wrapper/gradle-wrapper.jar
-.idea
-out/
-content_norm
-content_boh
-bhcontent_norm
-src/main/resources/static/images
-static
+/target
