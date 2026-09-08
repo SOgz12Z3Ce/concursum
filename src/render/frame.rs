@@ -1,5 +1,7 @@
 use maud::{Markup, html};
 
+use crate::data::DATA;
+
 pub(crate) fn head(title: &str) -> Markup {
     html! {
         head {
@@ -35,10 +37,31 @@ pub(crate) fn header() -> Markup {
 }
 
 pub(crate) fn sidebar() -> Markup {
+    let groups = &DATA.groups;
+    let group_files = &DATA.group_files;
+    let files = &DATA.files;
+    let file_objects = &DATA.file_objects;
+    let objects = &DATA.objects;
     html! {
         div id="sidebar" {
             div id="sections" {
-
+                @for group in groups {
+                    div class="section-title" { (group) }
+                    div class="section-list" {
+                        @for &index in &group_files[group] {
+                            div class="section-file" {
+                                @let file = &files[index];
+                                div class="section-file-title" { (&file) }
+                                @for &index in &file_objects[file] {
+                                    @let object = &objects[index];
+                                    @let group = &object.group;
+                                    @let id = &object.id;
+                                    a class="section-item" href=(format!("/{group}/{id}")) {(id)}
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

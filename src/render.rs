@@ -10,7 +10,10 @@ pub(crate) async fn index() -> Html<String> {
             (frame::head("concursum"))
             body {
                 (frame::header())
-                (frame::content())
+                div id="container" {
+                    (frame::sidebar())
+                    (frame::content())
+                }
                 (frame::footer())
             }
         }
