@@ -11,7 +11,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .route("/search", get(search))
         .nest_service("/static", ServeDir::new("static"));
 
-    const ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 3000);
+    const ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
     let listener = TcpListener::bind(ADDR).await?;
     axum::serve(listener, app).await?;
 
