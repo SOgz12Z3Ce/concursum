@@ -1,6 +1,9 @@
 mod frame;
 
-use crate::{data::{DATA, Object}, search};
+use crate::{
+    data::{DATA, Object},
+    search,
+};
 use axum::{
     extract::{Path, Query},
     response::Html,
