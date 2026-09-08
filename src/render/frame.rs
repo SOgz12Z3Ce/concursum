@@ -144,6 +144,27 @@ pub(crate) fn object_fields(object: &Object) -> Markup {
     }
 }
 
+pub(crate) fn search(objects: Vec<Object>) -> Markup {
+    html! {
+        div id="content" {
+            h2 id="content-title" {
+                span id="content-title-prefix" { "Search: " }
+                "Just wait..."
+            }
+            @for object in objects {
+                div class="search-result" {
+                    h3 class="search-result-title" {
+                        (object.id)
+                    }
+                    ul {
+                        li { "demo text" }
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub(crate) fn footer() -> Markup {
     html! {
         footer {

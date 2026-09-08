@@ -1,8 +1,15 @@
 mod frame;
 
-use crate::data::DATA;
-use axum::{extract::Path, response::Html};
+use crate::{
+    data::{DATA, Object},
+    search,
+};
+use axum::{
+    extract::{Path, Query},
+    response::Html,
+};
 use maud::{DOCTYPE, html};
+use std::collections::HashMap;
 
 pub(crate) async fn index() -> Html<String> {
     let content = html! {
@@ -41,9 +48,22 @@ pub(crate) async fn page(Path((group, id)): Path<(String, String)>) -> Html<Stri
     Html(content.into_string())
 }
 
-pub(crate) async fn search() -> Html<String> {
+pub(crate) async fn search(Query(params): Query<HashMap<String, String>>) -> Html<String> {
+    let object_indices = search::search(params);
+    let objects: Vec<Object> = object_indices.iter().map(|i| DATA.objects[*i].clone()).collect();
     let content = html! {
-        h1 {"search"}
+        (DOCTYPE)
+        html {
+            (frame::head("concursum"))
+            body {
+                (frame::header())
+                div id="container" {
+                    (frame::sidebar())
+                    (frame::search(objects))
+                }
+                (frame::footer())
+            }
+        }
     };
     Html(content.into_string())
 }
