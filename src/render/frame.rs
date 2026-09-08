@@ -1,6 +1,5 @@
-use maud::{Markup, html};
-
 use crate::data::DATA;
+use maud::{Markup, html};
 
 pub(crate) fn head(title: &str) -> Markup {
     html! {
