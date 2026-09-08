@@ -20,7 +20,7 @@ pub(crate) struct Data {
     pub(crate) file_objects: HashMap<String, Vec<usize>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct Objects {
     pub(crate) groups: Vec<String>, // TODO: Cow this.
     pub(crate) files: Vec<String>,  // TODO: Cow this.
@@ -28,6 +28,7 @@ pub(crate) struct Objects {
     pub(crate) contents: Vec<Value>, // TODO: Fill this type.
 }
 
+#[derive(Debug, Clone)]
 pub(crate) struct Object {
     pub(crate) group: String, // TODO: Cow this.
     pub(crate) file: String,  // TODO: Cow this.
