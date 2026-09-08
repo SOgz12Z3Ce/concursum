@@ -14,13 +14,20 @@ pub(crate) static DATA: LazyLock<Data> = LazyLock::new(load);
 pub(crate) struct Data {
     pub(crate) files: Vec<String>,
     pub(crate) groups: Vec<String>,
-    pub(crate) objects: Vec<Object>,
+    pub(crate) objects: Objects,
 
     pub(crate) group_files: HashMap<String, Vec<usize>>,
     pub(crate) file_objects: HashMap<String, Vec<usize>>,
 }
 
 #[derive(Debug, Clone)]
+pub(crate) struct Objects {
+    pub(crate) groups: Vec<String>, // TODO: Cow this.
+    pub(crate) files: Vec<String>,  // TODO: Cow this.
+    pub(crate) ids: Vec<String>,
+    pub(crate) contents: Vec<Value>, // TODO: Fill this type.
+}
+
 pub(crate) struct Object {
     pub(crate) group: String, // TODO: Cow this.
     pub(crate) file: String,  // TODO: Cow this.
@@ -88,26 +95,35 @@ fn load() -> Data {
         map
     };
 
-    let objects: Vec<Object> = files
+    let objects = files
         .iter()
         .flat_map(|(n, f)| {
             let root = f.as_object().unwrap();
             let (group, objects) = root.iter().next().unwrap();
-            objects.as_array().unwrap().iter().map(|o| {
+            objects.as_array().unwrap().iter().map(move |o| {
                 let id = o.as_object().unwrap()["id"].as_str().unwrap().to_owned();
-                Object {
-                    group: group.to_owned(),
-                    file: n.to_owned(),
-                    id,
-                    content: o.to_owned(),
-                }
+                (group.clone(), n.clone(), id, o.clone())
             })
         })
-        .collect();
+        .fold(
+            Objects {
+                groups: Vec::new(),
+                files: Vec::new(),
+                ids: Vec::new(),
+                contents: Vec::new(),
+            },
+            |mut acc, (group, file, id, content)| {
+                acc.groups.push(group);
+                acc.files.push(file);
+                acc.ids.push(id);
+                acc.contents.push(content);
+                acc
+            },
+        );
     let file_objects = {
         let mut map: HashMap<String, Vec<usize>> = HashMap::new();
-        for (index, object) in objects.iter().enumerate() {
-            let file = &object.file;
+        for index in 0..objects.len() {
+            let file = &objects.files[index];
             map.entry(file.to_owned()).or_default().push(index);
         }
         map
@@ -124,17 +140,31 @@ fn load() -> Data {
 
 impl Data {
     pub(crate) fn object(&self, group: &str, id: &str) -> Object {
-        let object_indices: Vec<usize> = self.group_files[group]
+        let objects: Vec<usize> = self
+            .objects
+            .ids
             .iter()
-            .map(|i| &self.files[*i])
-            .flat_map(|f| self.file_objects[f].clone())
+            .zip(self.objects.groups.iter())
+            .enumerate()
+            .filter(|(_, (i, g))| *i == id && *g == group)
+            .map(|(i, _)| i)
             .collect();
-        let objects: Vec<&Object> = object_indices
-            .iter()
-            .map(|i| &self.objects[*i])
-            .filter(|o| o.id == id)
-            .collect();
-        let object = objects[0].to_owned();
-        object
+        let index = objects[0];
+        self.objects.index(index)
+    }
+}
+
+impl Objects {
+    pub(crate) fn len(&self) -> usize {
+        self.groups.len()
+    }
+
+    pub(crate) fn index(&self, index: usize) -> Object {
+        Object {
+            group: self.groups[index].clone(),
+            file: self.files[index].clone(),
+            id: self.ids[index].clone(),
+            content: self.contents[index].clone(),
+        }
     }
 }

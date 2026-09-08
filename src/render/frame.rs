@@ -52,7 +52,7 @@ pub(crate) fn sidebar() -> Markup {
                                 @let file = &files[index];
                                 div class="section-file-title" { (&file) }
                                 @for &index in &file_objects[file] {
-                                    @let object = &objects[index];
+                                    @let object = objects.index(index);
                                     @let group = &object.group;
                                     @let id = &object.id;
                                     a class="section-item" href=(format!("/{group}/{id}")) {(id)}
