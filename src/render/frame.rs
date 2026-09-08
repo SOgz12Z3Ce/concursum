@@ -34,6 +34,16 @@ pub(crate) fn header() -> Markup {
     }
 }
 
+pub(crate) fn sidebar() -> Markup {
+    html! {
+        div id="sidebar" {
+            div id="sections" {
+
+            }
+        }
+    }
+}
+
 pub(crate) fn content() -> Markup {
     html! {
         div id="content" {
