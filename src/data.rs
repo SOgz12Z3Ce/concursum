@@ -20,7 +20,7 @@ pub(crate) struct Data {
     pub(crate) file_objects: HashMap<String, Vec<usize>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Object {
     pub(crate) group: String, // TODO: Cow this.
     pub(crate) file: String,  // TODO: Cow this.
@@ -119,5 +119,22 @@ fn load() -> Data {
         objects,
         group_files,
         file_objects,
+    }
+}
+
+impl Data {
+    pub(crate) fn object(&self, group: &str, id: &str) -> Object {
+        let object_indices: Vec<usize> = self.group_files[group]
+            .iter()
+            .map(|i| &self.files[*i])
+            .flat_map(|f| self.file_objects[f].clone())
+            .collect();
+        let objects: Vec<&Object> = object_indices
+            .iter()
+            .map(|i| &self.objects[*i])
+            .filter(|o| o.id == id)
+            .collect();
+        let object = objects[0].to_owned();
+        object
     }
 }

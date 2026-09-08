@@ -1,4 +1,4 @@
-use crate::data::DATA;
+use crate::data::{DATA, Object};
 use maud::{Markup, html};
 
 pub(crate) fn head(title: &str) -> Markup {
@@ -66,7 +66,7 @@ pub(crate) fn sidebar() -> Markup {
     }
 }
 
-pub(crate) fn content() -> Markup {
+pub(crate) fn index_content() -> Markup {
     html! {
         div id="content" {
             img id="logo"
@@ -109,6 +109,36 @@ pub(crate) fn content() -> Markup {
                     a href="https://ko-fi.com/lyrositor" { "Buy Lyro a coffee" }
                     "."
                 }
+            }
+        }
+    }
+}
+
+pub(crate) fn page_content(object: &Object) -> Markup {
+    html! {
+        div id="content" {
+            div id="data-page" {
+                h2 id="content-title" {
+                    span id="content-title-prefix" { (&object.group) ": " }
+                    "just wait ..."
+                    div class="copy-button data-copy ref" data-clipboard-text="Annoyance\nHere is a thorn in my side. I may yet find a way to remove it.\n\n" {
+                        img class="ref-icon" alt="" src="/frangiclave/static/images/frangiclave/codex.png";
+                        span class="ref-text ref-id" { "Copy" }
+                    }
+                }
+                img class="content-image image-element manifestation-empty" alt="Icon" src="/frangiclave/static/csimages/aspects/annoyance.png" onerror="this.src='/frangiclave/static/csimages/aspects/_x.png'";
+                (object_fields(object))
+            }
+        }
+    }
+}
+
+pub(crate) fn object_fields(object: &Object) -> Markup {
+    html! {
+        @for (key, value) in object.content.as_object().unwrap() {
+            p class="content-field" {
+                strong class="field-title" { (key) "：" }
+                (value)
             }
         }
     }
