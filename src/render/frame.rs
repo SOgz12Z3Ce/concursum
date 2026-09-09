@@ -122,11 +122,11 @@ pub(crate) fn page_content(object: &Object) -> Markup {
                     span id="content-title-prefix" { (&object.group) ": " }
                     "just wait ..."
                     div class="copy-button data-copy ref" data-clipboard-text="Annoyance\nHere is a thorn in my side. I may yet find a way to remove it.\n\n" {
-                        img class="ref-icon" alt="" src="/frangiclave/static/images/frangiclave/codex.png";
+                        img class="ref-icon" alt="" src="/static/images/codex.png";
                         span class="ref-text ref-id" { "Copy" }
                     }
                 }
-                // img class="content-image image-element manifestation-empty" alt="Icon" src=(format!("/static/images/cs/{}", object.icon()));
+                img class=(format!("content-image image-{} manifestation-empty", object.group)) alt="Icon" src=(format!("/static/images/cs/{}", object.icon()));
                 (object_fields(object))
             }
         }
