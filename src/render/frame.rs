@@ -126,7 +126,7 @@ pub(crate) fn page_content(object: &Object) -> Markup {
                         span class="ref-text ref-id" { "Copy" }
                     }
                 }
-                img class="content-image image-element manifestation-empty" alt="Icon" src="/frangiclave/static/csimages/aspects/annoyance.png" onerror="this.src='/frangiclave/static/csimages/aspects/_x.png'";
+                // img class="content-image image-element manifestation-empty" alt="Icon" src=(format!("/static/images/cs/{}", object.icon()));
                 (object_fields(object))
             }
         }
