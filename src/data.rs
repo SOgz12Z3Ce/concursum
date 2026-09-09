@@ -31,7 +31,8 @@ pub(crate) struct Objects {
 #[derive(Debug, Clone)]
 pub(crate) struct Object {
     pub(crate) group: String, // TODO: Cow this.
-    pub(crate) file: String,  // TODO: Cow this.
+    #[allow(unused)]
+    pub(crate) file: String, // TODO: Cow this.
     pub(crate) id: String,
     pub(crate) content: Value, // TODO: Fill this type.
 }
@@ -40,7 +41,7 @@ fn load() -> Data {
     // TODO: carefully process these JSONs.
     // There is no guarantee that different localization use same file tree
     // and one folder just contains exact one group of objects.
-    let base = Path::new("content/loc_zh-hans");
+    let base = Path::new("content/cs/loc_zh-hans");
     let dirs = {
         let mut buffer: Vec<PathBuf> = fs::read_dir(base)
             .unwrap()
@@ -174,11 +175,11 @@ impl Object {
     pub(crate) fn icon(&self) -> String {
         match self.group.as_str() {
             "achievements" => {
-                let icon = dbg!(match dbg!(&self.content).get("iconUnlocked") {
+                let icon = match &self.content.get("iconUnlocked") {
                     Some(v) => v.as_str().unwrap(),
                     None => "_x",
-                });
-                format!("elements/{icon}.png")
+                };
+                format!("cs/elements/{icon}.png")
             }
             "elements" => {
                 let icon = self
@@ -188,7 +189,7 @@ impl Object {
                     .unwrap()
                     .as_str()
                     .unwrap();
-                format!("{}/{}.png", self.group, icon)
+                format!("cs/{}/{}.png", self.group, icon)
             }
             _ => "error.png".to_owned(),
         }

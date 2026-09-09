@@ -126,7 +126,7 @@ pub(crate) fn page_content(object: &Object) -> Markup {
                         span class="ref-text ref-id" { "Copy" }
                     }
                 }
-                img class=(format!("content-image image-{} manifestation-empty", object.group)) alt="Icon" src=(format!("/static/images/cs/{}", object.icon()));
+                img class=(format!("content-image image-{} manifestation-empty", object.group)) alt="Icon" src=(format!("/static/images/{}", object.icon()));
                 (object_fields(object))
             }
         }

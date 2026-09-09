@@ -1,0 +1,2 @@
+You can find the content folder at:
+C:\Program Files\Steam\steamapps\common\Cultist Simulator\cultistsimulator_Data\StreamingAssets\content

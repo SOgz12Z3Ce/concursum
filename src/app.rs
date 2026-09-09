@@ -1,10 +1,15 @@
 use crate::render::{index, page, search};
 use axum::{Router, routing::get};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::{
+    env,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+};
 use tokio::net::TcpListener;
 use tower_http::services::ServeDir;
 
 pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
+    env::set_current_dir(env::current_exe()?.parent().unwrap())?;
+
     let app = Router::new()
         .route("/", get(index))
         .route("/{group}/{id}", get(page))
