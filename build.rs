@@ -1284,7 +1284,7 @@ fn copy_cs_images_as_general_icon(cs_images_path: &Path) {
     fs::copy(&favicon, &destination).unwrap();
 
     let favicon = image::open(favicon).unwrap();
-    let destination = OUT_PATH.join("favicon.ico");
+    let destination = OUT_STATIC_IMAGES_PATH.join("favicon.ico");
     favicon
         .save_with_format(destination, ImageFormat::Ico)
         .unwrap();
