@@ -115,13 +115,16 @@ pub(crate) fn page_content(object: &Object) -> Markup {
             div id="data-page" {
                 h2 id="content-title" {
                     span id="content-title-prefix" { (&object.group) ": " }
-                    "just wait ..."
-                    div class="copy-button data-copy ref" data-clipboard-text="Annoyance\nHere is a thorn in my side. I may yet find a way to remove it.\n\n" {
-                        img class="ref-icon" alt="" src="/static/images/codex.png";
-                        span class="ref-text ref-id" { "Copy" }
-                    }
+                    (object.id)
+                    // div class="copy-button data-copy ref" data-clipboard-text="Annoyance\nHere is a thorn in my side. I may yet find a way to remove it.\n\n" {
+                    //     img class="ref-icon" alt="" src="/static/images/codex.png";
+                    //     span class="ref-text ref-id" { "Copy" }
+                    // }
                 }
-                img class=(format!("content-image image-{} manifestation-empty", object.group)) alt="Icon" src=(format!("/static/images/{}", object.icon()));
+                img class=(format!("content-image image-{} manifestation-empty", object.group))
+                    alt="Icon"
+                    src=(format!("/static/images/{}", object.icon()))
+                    onerror="/static/images/error.png";
                 (object_fields(object))
             }
         }
