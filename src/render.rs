@@ -1,9 +1,6 @@
 mod frame;
 
-use crate::{
-    data::{DATA, Object},
-    search,
-};
+use crate::{data::DATA, search};
 use axum::{
     extract::{Path, Query},
     response::Html,
@@ -49,11 +46,7 @@ pub(crate) async fn page(Path((group, id)): Path<(String, String)>) -> Html<Stri
 }
 
 pub(crate) async fn search(Query(params): Query<HashMap<String, String>>) -> Html<String> {
-    let object_indices = search::search(params);
-    let objects: Vec<Object> = object_indices
-        .iter()
-        .map(|i| DATA.objects.index(*i))
-        .collect();
+    let search_results = search::search(params);
     let content = html! {
         (DOCTYPE)
         html {
@@ -62,7 +55,7 @@ pub(crate) async fn search(Query(params): Query<HashMap<String, String>>) -> Htm
                 (frame::header())
                 div id="container" {
                     (frame::sidebar())
-                    (frame::search(objects))
+                    (frame::search(search_results))
                 }
                 (frame::footer())
             }

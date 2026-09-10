@@ -1,5 +1,9 @@
-use crate::data::{DATA, Object};
+use crate::{
+    data::{DATA, Object},
+    search::SearchResult,
+};
 use maud::{Markup, html};
+use tantivy::snippet::Snippet;
 
 pub(crate) fn head(title: &str) -> Markup {
     html! {
@@ -144,25 +148,61 @@ pub(crate) fn object_fields(object: &Object) -> Markup {
     }
 }
 
-pub(crate) fn search(objects: Vec<Object>) -> Markup {
+pub(crate) fn search(search_results: Vec<SearchResult>) -> Markup {
+    let results: Vec<(Object, &Snippet)> = search_results
+        .iter()
+        .map(|result| (DATA.objects.index(result.index), &result.snippet))
+        .collect();
+
     html! {
         div id="content" {
             h2 id="content-title" {
                 span id="content-title-prefix" { "Search: " }
                 "Just wait..."
             }
-            @for object in objects {
+            @for (object, snippet) in results {
                 div class="search-result" {
                     h3 class="search-result-title" {
-                        (object.id)
+                        a href=(format!("/{}/{}", object.group, object.id)) {(object.id)}
                     }
                     ul {
-                        li { "demo text" }
+                        li {
+                            (fragment(snippet))
+                        }
                     }
                 }
             }
         }
     }
+}
+
+fn fragment(snippet: &Snippet) -> Markup {
+    let text = snippet.fragment();
+    let mut slices = Vec::new();
+    let mut cursor = 0;
+
+    for range in snippet.highlighted() {
+        if cursor < range.start {
+            slices.push((text[cursor..range.start].to_owned(), false));
+        }
+
+        slices.push((text[range.start..range.end].to_owned(), true));
+        cursor = range.end;
+    }
+
+    if cursor < text.len() {
+        slices.push((text[cursor..].to_owned(), false));
+    }
+
+    html!(
+        @for (content, highlighted) in slices {
+            @if highlighted {
+                strong { (content) }
+            } @else {
+                span { (content) }
+            }
+        }
+    )
 }
 
 pub(crate) fn footer() -> Markup {
