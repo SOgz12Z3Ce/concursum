@@ -1084,6 +1084,7 @@ static HASH_PATTERNS: LazyLock<HashMap<&'static str, Vec<&'static str>>> = LazyL
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=res");
 
     let cs_content_path = Path::new(CS_CONTENT_PATH);
     if cs_content_path.exists() {

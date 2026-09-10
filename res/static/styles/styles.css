@@ -5,7 +5,7 @@ body {
     padding: 0;
     display: flex;
     flex-flow: column;
-    background: var(--background-color) url("static/images/felt.png");
+    background: var(--background-color) url("/static/images/felt.png");
     color: var(--text-color);
     font-family: Lato, Verdana, Arial, sans-serif;
 }
