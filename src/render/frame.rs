@@ -79,31 +79,30 @@ pub(crate) fn index_content() -> Markup {
                 "欢迎来到聚点，漫宿的子午线所在之处，又称历史之室。在这里，你能看到漫宿发生的一切。"
             }
             p {
-                "请输入文本"
-            }
-            p {
-                "Data taken from: Cultist Simulator 2026.1.G.9 我忘了版本号"
+                "数据版本：2026.1.g.2"
             }
             div {
                 p class="index-foot" {
+                    "concursum 是公有领域软件，您可以自由地使用、分发、修改、商用此软件，无需服从任何条件。"
+                    br;
                     strong { "Github 仓库：" }
                     a href="https://github.com/SOgz12Z3Ce/concursum" { "SOgz12Z3Ce/concursum" }
                 }
                 p class="index-foot" {
-                    "Hosted by Frgm"
-                    br;
-                }
-                p class="index-foot" {
-                    "Based on the original "
+                    "基于 Lyrositor 的 "
                     a href="https://github.com/frangiclave/frangiclave-compendium" {
                         "Frangiclave Compendium"
                     }
-                    " by Lyrositor"
+                    " 以及 Igor Engel 的 "
+                    a href="https://github.com/gt22/frangiclave" {
+                        "Frangiclave Compendium (v2)"
+                    }
+                    " 修改而来。"
                 }
                 p id="donate" {
-                    "If you'd like to donate, feel free to "
-                    a href="https://ko-fi.com/lyrositor" { "Buy Lyro a coffee" }
-                    "."
+                    "您可以"
+                    a href="https://ko-fi.com/lyrositor" { "为 Lyrositor 买杯咖啡" }
+                    "。"
                 }
             }
         }
