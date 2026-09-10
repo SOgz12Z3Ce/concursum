@@ -172,10 +172,43 @@ impl Objects {
 }
 
 impl Object {
-    pub(crate) fn icon(&self) -> String {
+    pub(crate) fn icon(&self) -> Option<String> {
         match self.group.as_str() {
-            // ""
-            _ => "error.png".to_owned(),
+            "achievements" => {
+                Some("".to_owned()) // data needed
+            }
+            "decks" => None,
+            "elements" => {
+                let content = self.content.as_object().unwrap();
+                let icon = content
+                    .get("icon")
+                    .and_then(|icon| icon.as_str())
+                    .or(Some(&self.id))
+                    .unwrap();
+                if content.get("isAspect").is_some() {
+                    Some(format!("aspects/{icon}.png"))
+                } else {
+                    Some(format!("elements/{icon}.png"))
+                }
+            }
+            "endings" => {
+                let image = self.content.get("image").unwrap().as_str().unwrap();
+                Some(format!("endings/{image}.png"))
+            }
+            "legacies" => {
+                let image = self.content.get("image").unwrap().as_str().unwrap();
+                Some(format!("legacies/{image}.png"))
+            }
+            "recipes" => None,
+            "verbs" => {
+                Some(format!("verbs/{}.png", self.id))
+            }
+            "cultures" => None,
+            "dicta" => None,
+            "portals" => {
+                todo!() // data needed
+            }
+            _ => unreachable!(),
         }
     }
 }

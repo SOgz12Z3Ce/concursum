@@ -126,10 +126,12 @@ pub(crate) fn page_content(object: &Object) -> Markup {
                     //     span class="ref-text ref-id" { "Copy" }
                     // }
                 }
-                img class=(format!("content-image image-{} manifestation-empty", object.group))
-                    alt="Icon"
-                    src=(format!("/static/images/{}", object.icon()))
-                    onerror="/static/images/error.png";
+                @if let Some(icon) = object.icon() {
+                    img class=(format!("content-image image-{} manifestation-empty", object.group))
+                        alt="Icon"
+                        src=(format!("/static/images/cs/{}", icon))
+                        onerror="this.src=\"/static/images/error.png\"";
+                }
                 (object_fields(object))
             }
         }
