@@ -77,10 +77,10 @@ pub(crate) fn index_content() -> Markup {
                 src="/static/images/toolknockf.png"
                 alt="toolknockf";
             p id="tagline" {
-                "Welcome, friend, to the Frangiclave Compendium, the premier source of forbidden knowledge for the discerning occultist."
+                "请输入文本"
             }
             p {
-                "The Frangiclave is an open-source repository for information about the contents of the game Cultist Simulator, as extracted from the game's files. Here you can browse the decks, elements, legacies, recipes and verbs included in the game."
+                "请输入文本"
                 br;
                 strong {
                     "Reuse is permitted if it follows the rules in the "
@@ -90,7 +90,7 @@ pub(crate) fn index_content() -> Markup {
                 }
             }
             p {
-                "Data taken from: Cultist Simulator 2023.5.P.9"
+                "Data taken from: Cultist Simulator 2026.1.G.9 我忘了版本号"
             }
             div {
                 p class="index-foot" {
