@@ -24,7 +24,7 @@ pub(crate) fn header() -> Markup {
     html! {
         header {
             a href="/" {
-                img src="/static/images/knock.png" alt="knock";
+                img src="/static/images/favicon.png" alt="knock";
                 h1 { "concursum" }
             }
             form id="search-box" action="/search" method="get" {
@@ -74,28 +74,20 @@ pub(crate) fn index_content() -> Markup {
     html! {
         div id="content" {
             img id="logo"
-                src="/static/images/toolknockf.png"
-                alt="toolknockf";
+                src="/static/images/icon.png";
             p id="tagline" {
-                "请输入文本"
+                "欢迎来到聚点，漫宿的子午线所在之处，又称历史之室。在这里，你能看到漫宿发生的一切。"
             }
             p {
                 "请输入文本"
-                br;
-                strong {
-                    "Reuse is permitted if it follows the rules in the "
-                    a href="https://weatherfactory.biz/sixth-history-community-licence/" {
-                        "Sixth History License"
-                    }
-                }
             }
             p {
                 "Data taken from: Cultist Simulator 2026.1.G.9 我忘了版本号"
             }
             div {
                 p class="index-foot" {
-                    strong { "Source: " }
-                    a href="https://github.com/gt22/frangiclave" { "gt22/frangiclave" }
+                    strong { "Github 仓库：" }
+                    a href="https://github.com/SOgz12Z3Ce/concursum" { "SOgz12Z3Ce/concursum" }
                 }
                 p class="index-foot" {
                     "Hosted by Frgm"
@@ -208,15 +200,14 @@ fn fragment(snippet: &Snippet) -> Markup {
 pub(crate) fn footer() -> Markup {
     html! {
         footer {
-            "Cultist Simulator and Book of Hours is the sole property of Weather Factory. All rights reserved."
+            "《密教模拟器》（" site { "Cultist Simulator" } "）和《司辰之书》（" site{ "Book of Hours" } "）为 Weather Factory 所有，保留所有权利。"
             br;
-            "All game content on this website, including images and text, is used with permission."
-            br;
-            "Reuse is permitted if it follows the rules in the "
+            "本站使用的所有游戏内容，包括图片与文字，均在 "
             a href="https://weatherfactory.biz/sixth-history-community-licence/"
               target="_blank" {
-                "Sixth History License"
+                site { "Sixth History Community Licence" }
             }
+            " 的许可下使用。"
         }
     }
 }

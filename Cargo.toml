@@ -15,6 +15,7 @@ tower-http = { version = "0.7.1", features = ["fs"] }
 
 [build-dependencies]
 hex = "0.4.3"
+image = "0.25.10"
 pathdiff = "0.2.3"
 serde-transcode = "1.1.1"
 serde_json = "1.0.151"

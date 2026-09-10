@@ -1,3 +1,4 @@
+use image::ImageFormat;
 use serde_json::{Deserializer, Serializer};
 use sha2::{Digest, Sha256};
 use std::{
@@ -1275,22 +1276,28 @@ fn copy_etc_static_files(etc_static_files: Vec<PathBuf>) {
 }
 
 fn copy_cs_images_as_general_icon(cs_images_path: &Path) {
-    let knock = PathBuf::new()
+    let favicon = PathBuf::new()
         .join(cs_images_path)
         .join("aspects")
-        .join("knock.png");
-    let destination = OUT_STATIC_IMAGES_PATH.join("knock.png");
-    fs::copy(knock, destination).unwrap();
+        .join("secrethistories.png");
+    let destination = OUT_STATIC_IMAGES_PATH.join("favicon.png");
+    fs::copy(&favicon, &destination).unwrap();
 
-    let toolknockf = PathBuf::new()
-        .join(cs_images_path)
-        .join("elements")
-        .join("toolknockf.png");
-    let destination = OUT_STATIC_IMAGES_PATH.join("toolknockf.png");
-    fs::copy(toolknockf, destination).unwrap();
+    let favicon = image::open(favicon).unwrap();
+    let destination = OUT_PATH.join("favicon.ico");
+    favicon
+        .save_with_format(destination, ImageFormat::Ico)
+        .unwrap();
 }
 
 fn copy_boh_images_as_general_icon(boh_images_path: &Path) {
+    let icon = PathBuf::new()
+        .join(boh_images_path)
+        .join("elements")
+        .join("numen.worl.png");
+    let destination = OUT_STATIC_IMAGES_PATH.join("icon.png");
+    fs::copy(icon, destination).unwrap();
+
     let codex = PathBuf::new()
         .join(boh_images_path)
         .join("aspects")
