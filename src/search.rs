@@ -47,11 +47,13 @@ static INDEX: LazyLock<SearchEngine> = LazyLock::new(|| {
         index_field = builder.add_u64_field(INDEX_FIELD_NAME, FAST | STORED);
         label_field = builder.add_text_field(
             LABEL_FIELD_NAME,
-            TextOptions::default().set_indexing_options(
-                TextFieldIndexing::default()
-                    .set_tokenizer(JIEBA_TOKENIZER_NAME)
-                    .set_index_option(IndexRecordOption::Basic),
-            ),
+            TextOptions::default()
+                .set_indexing_options(
+                    TextFieldIndexing::default()
+                        .set_tokenizer(JIEBA_TOKENIZER_NAME)
+                        .set_index_option(IndexRecordOption::Basic),
+                )
+                .set_stored(),
         );
         description_field = builder.add_text_field(
             DESCRIPTION_FIELD_NAME,
@@ -120,8 +122,10 @@ pub(crate) fn search(params: HashMap<String, String>) -> Vec<SearchResult> {
     // Exact matched docs MUST be collected, while fuzzy matched docs SHOULD be
     // collected with a limit.
     let searcher = index.reader().unwrap().searcher();
-    let snippet_generator =
+    let description_snippet_generator =
         SnippetGenerator::create(&searcher, &query, *description_field).unwrap();
+    let label_snippet_generator =
+        SnippetGenerator::create(&searcher, &query, *label_field).unwrap();
     searcher
         .search(&query, &TopDocs::with_limit(100).order_by_score())
         .unwrap()
@@ -129,7 +133,10 @@ pub(crate) fn search(params: HashMap<String, String>) -> Vec<SearchResult> {
         .map(|(_, address)| {
             let doc: TantivyDocument = searcher.doc(address).unwrap();
             let index = doc.get_first(index_field).unwrap().as_u64().unwrap() as usize; // Since we don't have 4.3B objects
-            let snippet = snippet_generator.snippet_from_doc(&doc);
+            let mut snippet = description_snippet_generator.snippet_from_doc(&doc);
+            if snippet.is_empty() {
+                snippet = label_snippet_generator.snippet_from_doc(&doc);
+            }
 
             SearchResult { index, snippet }
         })
