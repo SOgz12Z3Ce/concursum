@@ -39,7 +39,7 @@ pub(crate) fn header() -> Markup {
     }
 }
 
-pub(crate) fn sidebar() -> Markup {
+pub(crate) fn sidebar(expanded_group: Option<String>, active_id: Option<String>) -> Markup {
     let groups = &DATA.groups;
     let group_files = &DATA.group_files;
     let files = &DATA.files;
@@ -50,16 +50,21 @@ pub(crate) fn sidebar() -> Markup {
             div id="sections" {
                 @for group in groups {
                     div class="section-title" { (group) }
-                    div class="section-list" {
+                    div class=(format!("section-list{}", if expanded_group.as_ref().is_some_and(|g| g == group) {" section-list-opened"} else {""})) {
                         @for &index in &group_files[group] {
                             div class="section-file" {
                                 @let file = &files[index];
                                 div class="section-file-title" { (&file) }
+
                                 @for &index in &file_objects[file] {
                                     @let object = objects.index(index);
                                     @let group = &object.group;
                                     @let id = &object.id;
-                                    a class="section-item" href=(format!("/{group}/{id}")) {(id)}
+                                    @if active_id.as_ref().is_some_and(|i| i == id) {
+                                        a id="section-item-active" class="section-item" href=(format!("/{group}/{id}")) {(id)}
+                                    } @else {
+                                        a class="section-item" href=(format!("/{group}/{id}")) {(id)}
+                                    }
                                 }
                             }
                         }

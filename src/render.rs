@@ -16,7 +16,7 @@ pub(crate) async fn index() -> Html<String> {
             body {
                 (frame::header())
                 div id="container" {
-                    (frame::sidebar())
+                    (frame::sidebar(None, None))
                     (frame::index_content())
                 }
                 (frame::footer())
@@ -35,7 +35,7 @@ pub(crate) async fn page(Path((group, id)): Path<(String, String)>) -> Html<Stri
             body {
                 (frame::header())
                 div id="container" {
-                    (frame::sidebar())
+                    (frame::sidebar(Some(group), Some(id)))
                     (frame::page_content(&object))
                 }
                 (frame::footer())
@@ -54,7 +54,7 @@ pub(crate) async fn search(Query(params): Query<HashMap<String, String>>) -> Htm
             body {
                 (frame::header())
                 div id="container" {
-                    (frame::sidebar())
+                    (frame::sidebar(None, None))
                     (frame::search(search_results))
                 }
                 (frame::footer())

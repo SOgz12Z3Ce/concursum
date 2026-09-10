@@ -174,23 +174,7 @@ impl Objects {
 impl Object {
     pub(crate) fn icon(&self) -> String {
         match self.group.as_str() {
-            "achievements" => {
-                let icon = match &self.content.get("iconUnlocked") {
-                    Some(v) => v.as_str().unwrap(),
-                    None => "_x",
-                };
-                format!("cs/elements/{icon}.png")
-            }
-            "elements" => {
-                let icon = self
-                    .content
-                    .get("icon")
-                    .or(self.content.get("id"))
-                    .unwrap()
-                    .as_str()
-                    .unwrap();
-                format!("cs/{}/{}.png", self.group, icon)
-            }
+            // ""
             _ => "error.png".to_owned(),
         }
     }
