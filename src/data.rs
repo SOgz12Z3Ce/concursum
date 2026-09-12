@@ -60,7 +60,7 @@ pub(crate) static DATA: LazyLock<Data> = LazyLock::new(|| {
         .into_iter()
         .collect();
 
-    let mut group_files: HashMap<String, Vec<usize>> = HashMap::new();
+    let mut group_files: HashMap<String, HashSet<usize>> = HashMap::new();
     let mut file_objects: HashMap<String, Vec<usize>> = HashMap::new();
     for (index, object) in localized_objects.iter().enumerate() {
         let group = object.group();
@@ -69,9 +69,14 @@ pub(crate) static DATA: LazyLock<Data> = LazyLock::new(|| {
         group_files
             .entry(group.to_owned())
             .or_default()
-            .push(files.iter().position(|f| f == file).unwrap());
+            .insert(files.iter().position(|f| f == file).unwrap());
         file_objects.entry(file.to_owned()).or_default().push(index);
     }
+
+    let group_files = group_files
+        .into_iter()
+        .map(|(key, value)| (key, value.into_iter().collect::<Vec<_>>()))
+        .collect();
 
     Data {
         index,
