@@ -105,16 +105,23 @@ impl LocalizedObject {
                 Some(format!("endings/{image}.png"))
             }
             "legacies" => {
-                let image = &self.core.properties.get("image").unwrap().as_str().unwrap();
+                let Some(image) = &self.core.properties.get("image") else {
+                    return None;
+                };
+                let image = image.as_str().unwrap();
                 Some(format!("legacies/{image}.png"))
             }
+            "legcies" => None,
+            "levers" => None,
+            "portals" => {
+                let image = &self.core.properties.get("icon").unwrap().as_str().unwrap();
+                Some(format!("portals/{image}.png")) // where is it?
+            }
             "recipes" => None,
+            "settings" => None,
             "verbs" => Some(format!("verbs/{}.png", self.id())),
             "cultures" => None,
             "dicta" => None,
-            "portals" => {
-                todo!() // data needed
-            }
             _ => unreachable!(),
         }
     }

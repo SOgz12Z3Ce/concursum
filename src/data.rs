@@ -24,15 +24,7 @@ pub(crate) static DATA: LazyLock<Data> = LazyLock::new(|| {
             .try_into()
             .unwrap();
 
-    let core_objects = {
-        let mut objects = Object::from_files(core_files);
-        objects.sort_by(|a, b| {
-            a.group
-                .cmp(&b.group)
-                .then_with(|| a.location.cmp(&b.location))
-        });
-        objects
-    };
+    let core_objects = Object::from_files(core_files);
     let localization_objects: [Vec<Object>; localization::LOCALIZATION_COUNT] = localization_files
         .into_iter()
         .map(|files| Object::from_files(files))
@@ -41,24 +33,33 @@ pub(crate) static DATA: LazyLock<Data> = LazyLock::new(|| {
         .unwrap();
 
     let localized_objects = LocalizedObject::from_objects(core_objects, localization_objects);
+    let mut localized_objects: Vec<(Key, LocalizedObject)> =
+        localized_objects.into_iter().collect();
+    localized_objects.sort_by(|(_, a), (_, b)| {
+        a.group()
+            .cmp(b.group())
+            .then_with(|| a.location().cmp(b.location()))
+    });
 
     let (index, localized_objects): (HashMap<Key, usize>, Vec<LocalizedObject>) = localized_objects
         .into_iter()
         .enumerate()
         .map(|(index, (key, object))| ((key, index), object))
         .collect();
-    let groups: Vec<String> = localized_objects
+    let mut groups: Vec<String> = localized_objects
         .iter()
         .map(|object| object.group().to_owned())
         .collect::<HashSet<_>>()
         .into_iter()
         .collect();
-    let files: Vec<String> = localized_objects
+    groups.sort();
+    let mut files: Vec<String> = localized_objects
         .iter()
         .map(|object| object.location().to_owned())
         .collect::<HashSet<_>>()
         .into_iter()
         .collect();
+    files.sort();
 
     let mut group_files: HashMap<String, HashSet<usize>> = HashMap::new();
     let mut file_objects: HashMap<String, Vec<usize>> = HashMap::new();
