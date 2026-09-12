@@ -118,6 +118,8 @@ impl Data {
         for object in &self.localized_objects {
             let Some(object) = &object.localizations[5] else {
                 // ZH only for now
+                labels.push(None);
+                descriptions.push(None);
                 continue;
             };
             labels.push(
