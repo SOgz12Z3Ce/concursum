@@ -1,7 +1,4 @@
-use crate::{
-    data::{DATA, Object},
-    search::SearchResult,
-};
+use crate::{data::{DATA, localization::LocalizedObject}, search::SearchResult};
 use maud::{Markup, html};
 use tantivy::snippet::Snippet;
 
@@ -44,7 +41,7 @@ pub(crate) fn sidebar(expanded_group: Option<String>, active_id: Option<String>)
     let group_files = &DATA.group_files;
     let files = &DATA.files;
     let file_objects = &DATA.file_objects;
-    let objects = &DATA.objects;
+    let objects = &DATA.localized_objects;
     html! {
         div id="sidebar" {
             div id="sections" {
@@ -57,9 +54,9 @@ pub(crate) fn sidebar(expanded_group: Option<String>, active_id: Option<String>)
                                 div class="section-file-title" { (&file) }
 
                                 @for &index in &file_objects[file] {
-                                    @let object = objects.index(index);
-                                    @let group = &object.group;
-                                    @let id = &object.id;
+                                    @let object = objects.get(index).unwrap();
+                                    @let group = object.group();
+                                    @let id = object.id();
                                     @if active_id.as_ref().is_some_and(|i| i == id) {
                                         a id="section-item-active" class="section-item" href=(format!("/{group}/{id}")) {(id)}
                                     } @else {
@@ -114,20 +111,20 @@ pub(crate) fn index_content() -> Markup {
     }
 }
 
-pub(crate) fn page_content(object: &Object) -> Markup {
+pub(crate) fn page_content(object: &LocalizedObject) -> Markup {
     html! {
         div id="content" {
             div id="data-page" {
                 h2 id="content-title" {
-                    span id="content-title-prefix" { (&object.group) ": " }
-                    (object.id)
+                    span id="content-title-prefix" { (object.group()) ": " }
+                    (object.id())
                     // div class="copy-button data-copy ref" data-clipboard-text="Annoyance\nHere is a thorn in my side. I may yet find a way to remove it.\n\n" {
                     //     img class="ref-icon" alt="" src="/static/images/codex.png";
                     //     span class="ref-text ref-id" { "Copy" }
                     // }
                 }
                 @if let Some(icon) = object.icon() {
-                    img class=(format!("content-image image-{} manifestation-empty", object.group))
+                    img class=(format!("content-image image-{} manifestation-empty", object.group()))
                         alt="Icon"
                         src=(format!("/static/images/cs/{}", icon))
                         onerror="this.src=\"/static/images/error.png\"";
@@ -138,9 +135,9 @@ pub(crate) fn page_content(object: &Object) -> Markup {
     }
 }
 
-pub(crate) fn object_fields(object: &Object) -> Markup {
+pub(crate) fn object_fields(object: &LocalizedObject) -> Markup {
     html! {
-        @for (key, value) in object.content.as_object().unwrap() {
+        @for (key, value) in &object.core.properties {
             p class="content-field" {
                 strong class="field-title" { (key) "：" }
                 (value)
@@ -150,9 +147,9 @@ pub(crate) fn object_fields(object: &Object) -> Markup {
 }
 
 pub(crate) fn search(search_results: Vec<SearchResult>) -> Markup {
-    let results: Vec<(Object, &Snippet)> = search_results
+    let results: Vec<(&LocalizedObject, &Snippet)> = search_results
         .iter()
-        .map(|result| (DATA.objects.index(result.index), &result.snippet))
+        .map(|result| (DATA.localized_objects.get(result.index).unwrap(), &result.snippet))
         .collect();
 
     html! {
@@ -164,7 +161,7 @@ pub(crate) fn search(search_results: Vec<SearchResult>) -> Markup {
             @for (object, snippet) in results {
                 div class="search-result" {
                     h3 class="search-result-title" {
-                        a href=(format!("/{}/{}", object.group, object.id)) {(object.id)}
+                        a href=(format!("/{}/{}", object.group(), object.id())) {(object.id())}
                     }
                     ul {
                         li {

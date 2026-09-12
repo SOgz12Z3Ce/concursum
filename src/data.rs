@@ -1,214 +1,143 @@
-use serde_json::Value;
+mod files;
+pub(crate) mod localization;
+pub(crate) mod object;
+
+use crate::data::{
+    files::File,
+    localization::LocalizedObject,
+    object::{Key, Object},
+};
 use std::{
     collections::{HashMap, HashSet},
-    fs::{self, File},
-    io::BufReader,
-    iter,
-    path::{Path, PathBuf},
+    path::Path,
     sync::LazyLock,
 };
 
-pub(crate) static DATA: LazyLock<Data> = LazyLock::new(load);
+pub(crate) static DATA: LazyLock<Data> = LazyLock::new(|| {
+    let base = Path::new("content/cs");
+    let core_files = files::load(base.join("core"));
+    let localization_files: [Vec<File>; localization::LOCALIZATION_COUNT] =
+        localization::LOCALIZATION_STRS
+            .iter()
+            .map(|localization_str| files::load(base.join(localization_str.folder)))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+
+    let core_objects = {
+        let mut objects = Object::from_files(core_files);
+        objects.sort_by(|a, b| {
+            a.group
+                .cmp(&b.group)
+                .then_with(|| a.location.cmp(&b.location))
+        });
+        objects
+    };
+    let localization_objects: [Vec<Object>; localization::LOCALIZATION_COUNT] = localization_files
+        .into_iter()
+        .map(|files| Object::from_files(files))
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+    let localized_objects = LocalizedObject::from_objects(core_objects, localization_objects);
+
+    let (index, localized_objects): (HashMap<Key, usize>, Vec<LocalizedObject>) = localized_objects
+        .into_iter()
+        .enumerate()
+        .map(|(index, (key, object))| ((key, index), object))
+        .collect();
+    let groups: Vec<String> = localized_objects
+        .iter()
+        .map(|object| object.group().to_owned())
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    let files: Vec<String> = localized_objects
+        .iter()
+        .map(|object| object.location().to_owned())
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    let mut group_files: HashMap<String, Vec<usize>> = HashMap::new();
+    let mut file_objects: HashMap<String, Vec<usize>> = HashMap::new();
+    for (index, object) in localized_objects.iter().enumerate() {
+        let group = object.group();
+        let file = object.location();
+
+        group_files
+            .entry(group.to_owned())
+            .or_default()
+            .push(files.iter().position(|f| f == file).unwrap());
+        file_objects.entry(file.to_owned()).or_default().push(index);
+    }
+
+    Data {
+        index,
+        localized_objects,
+        groups,
+        files,
+        group_files,
+        file_objects,
+    }
+});
 
 #[derive(Debug)]
 pub(crate) struct Data {
-    pub(crate) files: Vec<String>,
+    pub(crate) index: HashMap<Key, usize>,
+
+    pub(crate) localized_objects: Vec<LocalizedObject>,
     pub(crate) groups: Vec<String>,
-    pub(crate) objects: Objects,
+    pub(crate) files: Vec<String>,
 
     pub(crate) group_files: HashMap<String, Vec<usize>>,
     pub(crate) file_objects: HashMap<String, Vec<usize>>,
 }
 
-#[derive(Debug)]
-pub(crate) struct Objects {
-    pub(crate) groups: Vec<String>, // TODO: Cow this.
-    pub(crate) files: Vec<String>,  // TODO: Cow this.
-    pub(crate) ids: Vec<String>,
-    pub(crate) contents: Vec<Value>, // TODO: Fill this type.
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct Object {
-    pub(crate) group: String, // TODO: Cow this.
-    #[allow(unused)]
-    pub(crate) file: String, // TODO: Cow this.
-    pub(crate) id: String,
-    pub(crate) content: Value, // TODO: Fill this type.
-}
-
-fn load() -> Data {
-    // TODO: carefully process these JSONs.
-    // There is no guarantee that different localization use same file tree
-    // and one folder just contains exact one group of objects.
-    let base = Path::new("content/cs/loc_zh-hans");
-    let dirs = {
-        let mut buffer: Vec<PathBuf> = fs::read_dir(base)
-            .unwrap()
-            .map(|entry| entry.unwrap().path())
-            .collect();
-        buffer.sort();
-        buffer
-    };
-    let files = {
-        let mut buffer = vec![];
-        for dir in dirs {
-            let dir = fs::read_dir(dir).unwrap();
-            let mut files: Vec<PathBuf> = dir.into_iter().map(|e| e.unwrap().path()).collect();
-            files.sort();
-            buffer.extend(files);
-        }
-        buffer
-    };
-    let file_names: Vec<String> = files
-        .iter()
-        .map(|f| f.file_name().unwrap().to_string_lossy().into_owned())
-        .collect();
-
-    let files: Vec<(String, Value)> = iter::zip(file_names.clone(), files)
-        .map(|(n, f)| {
-            let file = File::open(f).unwrap();
-            let reader = BufReader::new(file);
-            let content: Value = serde_json::from_reader(reader).unwrap();
-            (n, content)
-        })
-        .collect();
-    let groups = {
-        let mut buffer: Vec<String> = files
-            .iter()
-            .map(|(_, f)| {
-                let root = f.as_object().unwrap();
-                let (group, _) = root.iter().next().unwrap();
-                group.to_owned()
-            })
-            .collect::<HashSet<String>>()
-            .into_iter()
-            .collect();
-        buffer.sort();
-        buffer
-    };
-    let group_files = {
-        let mut map: HashMap<String, Vec<usize>> = HashMap::new();
-        for (index, (_, file)) in files.iter().enumerate() {
-            let root = file.as_object().unwrap();
-            let (group, _) = root.iter().next().unwrap();
-            map.entry(group.to_owned()).or_default().push(index);
-        }
-        map
-    };
-
-    let objects = files
-        .iter()
-        .flat_map(|(n, f)| {
-            let root = f.as_object().unwrap();
-            let (group, objects) = root.iter().next().unwrap();
-            objects.as_array().unwrap().iter().map(move |o| {
-                let id = o.as_object().unwrap()["id"].as_str().unwrap().to_owned();
-                (group.clone(), n.clone(), id, o.clone())
-            })
-        })
-        .fold(
-            Objects {
-                groups: Vec::new(),
-                files: Vec::new(),
-                ids: Vec::new(),
-                contents: Vec::new(),
-            },
-            |mut acc, (group, file, id, content)| {
-                acc.groups.push(group);
-                acc.files.push(file);
-                acc.ids.push(id);
-                acc.contents.push(content);
-                acc
-            },
-        );
-    let file_objects = {
-        let mut map: HashMap<String, Vec<usize>> = HashMap::new();
-        for index in 0..objects.len() {
-            let file = &objects.files[index];
-            map.entry(file.to_owned()).or_default().push(index);
-        }
-        map
-    };
-
-    Data {
-        files: file_names,
-        groups,
-        objects,
-        group_files,
-        file_objects,
-    }
-}
-
 impl Data {
-    pub(crate) fn object(&self, group: &str, id: &str) -> Object {
-        let objects: Vec<usize> = self
-            .objects
-            .ids
-            .iter()
-            .zip(self.objects.groups.iter())
-            .enumerate()
-            .filter(|(_, (i, g))| *i == id && *g == group)
-            .map(|(i, _)| i)
-            .collect();
-        let index = objects[0];
-        self.objects.index(index)
-    }
-}
-
-impl Objects {
-    pub(crate) fn len(&self) -> usize {
-        self.groups.len()
+    pub(crate) fn object(&self, key: &Key) -> Option<&LocalizedObject> {
+        let index = self.index.get(&key);
+        index.and_then(|index| Some(&self.localized_objects[*index]))
     }
 
-    pub(crate) fn index(&self, index: usize) -> Object {
-        Object {
-            group: self.groups[index].clone(),
-            file: self.files[index].clone(),
-            id: self.ids[index].clone(),
-            content: self.contents[index].clone(),
+    pub(crate) fn texts<'a>(&'a self) -> Texts<'a> {
+        let Texts {
+            mut labels,
+            mut descriptions,
+        };
+        labels = Vec::new();
+        descriptions = Vec::new();
+
+        for object in &self.localized_objects {
+            let Some(object) = &object.localizations[5] else {
+                // ZH only for now
+                continue;
+            };
+            labels.push(
+                object
+                    .properties
+                    .get("label")
+                    .and_then(|label| label.as_str()),
+            );
+            descriptions.push(
+                object
+                    .properties
+                    .get("description")
+                    .and_then(|label| label.as_str()),
+            );
+        }
+
+        Texts {
+            labels,
+            descriptions,
         }
     }
 }
 
-impl Object {
-    pub(crate) fn icon(&self) -> Option<String> {
-        match self.group.as_str() {
-            "achievements" => {
-                Some("".to_owned()) // data needed
-            }
-            "decks" => None,
-            "elements" => {
-                let content = self.content.as_object().unwrap();
-                let icon = content
-                    .get("icon")
-                    .and_then(|icon| icon.as_str())
-                    .or(Some(&self.id))
-                    .unwrap();
-                if content.get("isAspect").is_some() {
-                    Some(format!("aspects/{icon}.png"))
-                } else {
-                    Some(format!("elements/{icon}.png"))
-                }
-            }
-            "endings" => {
-                let image = self.content.get("image").unwrap().as_str().unwrap();
-                Some(format!("endings/{image}.png"))
-            }
-            "legacies" => {
-                let image = self.content.get("image").unwrap().as_str().unwrap();
-                Some(format!("legacies/{image}.png"))
-            }
-            "recipes" => None,
-            "verbs" => {
-                Some(format!("verbs/{}.png", self.id))
-            }
-            "cultures" => None,
-            "dicta" => None,
-            "portals" => {
-                todo!() // data needed
-            }
-            _ => unreachable!(),
-        }
-    }
+// TODO: Add more fileds.
+#[derive(Debug)]
+pub(crate) struct Texts<'a> {
+    pub(crate) labels: Vec<Option<&'a str>>,
+    pub(crate) descriptions: Vec<Option<&'a str>>,
 }

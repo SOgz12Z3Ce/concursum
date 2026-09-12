@@ -73,14 +73,15 @@ static INDEX: LazyLock<SearchEngine> = LazyLock::new(|| {
         .register(JIEBA_TOKENIZER_NAME, JiebaTokenizer::default());
 
     let mut writer = index.writer(MEMORY_BUDGET).unwrap();
-    for (index, content) in DATA.objects.contents.iter().enumerate() {
+    let texts = DATA.texts();
+    for index in 0..DATA.localized_objects.len() {
         let mut document = doc!(
             index_field => index as u64,
         );
-        if let Some(label) = content.get(LABEL_FIELD_NAME).and_then(|v| v.as_str()) {
+        if let Some(label) = texts.labels[index] {
             document.add_text(label_field, label);
         }
-        if let Some(description) = content.get(DESCRIPTION_FIELD_NAME).and_then(|v| v.as_str()) {
+        if let Some(description) = texts.descriptions[index] {
             document.add_text(description_field, description);
         }
         writer.add_document(document).unwrap();

@@ -1,6 +1,9 @@
 mod frame;
 
-use crate::{data::DATA, search};
+use crate::{
+    data::{DATA, object::Key},
+    search,
+};
 use axum::{
     extract::{Path, Query},
     response::Html,
@@ -27,7 +30,13 @@ pub(crate) async fn index() -> Html<String> {
 }
 
 pub(crate) async fn page(Path((group, id)): Path<(String, String)>) -> Html<String> {
-    let object = DATA.object(&group, &id);
+    let key = Key {
+        group: group.clone(),
+        id: id.clone(),
+    };
+    let object = DATA
+        .object(&key)
+        .expect(&format!("not found: {}/{}", key.group, key.id));
     let content = html! {
         (DOCTYPE)
         html {
