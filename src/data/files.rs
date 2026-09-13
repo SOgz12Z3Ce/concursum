@@ -33,8 +33,8 @@ pub(crate) fn load<P: AsRef<Path>>(root: P) -> Vec<File> {
         .map(|path| File {
             location: pathdiff::diff_paths(&path, root.as_ref())
                 .unwrap()
-                .into_string()
-                .unwrap(),
+                .to_string_lossy()
+                .into_owned(),
             content: read(&path),
         })
         .collect()
