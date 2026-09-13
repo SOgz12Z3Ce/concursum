@@ -3,9 +3,7 @@ pub(crate) mod localization;
 pub(crate) mod object;
 
 use crate::data::{
-    files::File,
-    localization::LocalizedObject,
-    object::{Key, Object},
+    files::File, localization::LocalizedObject, object::{Key, Object, Texts},
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -116,24 +114,22 @@ impl Data {
         descriptions = Vec::new();
 
         for object in &self.localized_objects {
-            let Some(object) = &object.localizations[5] else {
-                // ZH only for now
-                labels.push(None);
-                descriptions.push(None);
-                continue;
+            let mut cur_labels = Vec::new();
+            let mut cur_descriptions = Vec::new();
+
+            let core = &object.core;
+            let texts = core.texts();
+            cur_labels.extend(texts.labels);
+            cur_descriptions.extend(texts.descriptions);
+
+            if let Some(object) = &object.localizations[5] {
+                let texts = object.texts();
+                cur_labels.extend(texts.labels);
+                cur_descriptions.extend(texts.descriptions);
             };
-            labels.push(
-                object
-                    .properties
-                    .get("label")
-                    .and_then(|label| label.as_str()),
-            );
-            descriptions.push(
-                object
-                    .properties
-                    .get("description")
-                    .and_then(|label| label.as_str()),
-            );
+
+            labels.push(cur_labels);
+            descriptions.push(cur_descriptions);
         }
 
         Texts {
@@ -141,11 +137,4 @@ impl Data {
             descriptions,
         }
     }
-}
-
-// TODO: Add more fileds.
-#[derive(Debug)]
-pub(crate) struct Texts<'a> {
-    pub(crate) labels: Vec<Option<&'a str>>,
-    pub(crate) descriptions: Vec<Option<&'a str>>,
 }

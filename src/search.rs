@@ -78,10 +78,13 @@ static INDEX: LazyLock<SearchEngine> = LazyLock::new(|| {
         let mut document = doc!(
             index_field => index as u64,
         );
-        if let Some(label) = texts.labels[index] {
+        let labels = &texts.labels[index];
+        for label in labels {
             document.add_text(label_field, label);
         }
-        if let Some(description) = texts.descriptions[index] {
+
+        let descriptions = &texts.descriptions[index];
+        for description in descriptions {
             document.add_text(description_field, description);
         }
         writer.add_document(document).unwrap();

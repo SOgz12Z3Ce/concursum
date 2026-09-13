@@ -44,6 +44,170 @@ impl Object {
             id: self.id().to_owned(),
         }
     }
+
+    pub(crate) fn texts<'a>(&'a self) -> Text<'a> {
+        let Text {
+            mut labels,
+            mut descriptions,
+        } = Text::default();
+
+        // Labels
+        // General label
+        if let Some(label) = self.properties.get("label") {
+            let label = label.as_str().unwrap();
+            labels.push(label);
+        }
+
+        // Slot label
+        if let Some(label) = self
+            .properties
+            .get("slot")
+            .and_then(|slot| slot.as_object().unwrap().get("label"))
+        {
+            let label = label.as_str().unwrap();
+            labels.push(label);
+        }
+
+        // Slots label
+        if let Some(slots) = self
+            .properties
+            .get("slots")
+            .and_then(|slots| slots.as_array())
+        {
+            for slot in slots {
+                let Some(label) = slot.as_object().unwrap().get("label") else {
+                    continue;
+                };
+                let label = label.as_str().unwrap();
+                labels.push(label);
+            }
+        }
+
+        // Internal deck label
+        if let Some(label) = self
+            .properties
+            .get("internaldeck")
+            .and_then(|internal_deck| internal_deck.as_object().unwrap().get("label"))
+        {
+            let label = label.as_str().unwrap();
+            labels.push(label);
+        }
+
+        // Recipes label
+        if let Some(alts) = self.properties.get("alt") {
+            let alts = alts.as_array().unwrap();
+            for alt in alts {
+                let alt = alt.as_object().unwrap();
+                if let Some(label) = alt.get("label") {
+                    let label = label.as_str().unwrap();
+                    labels.push(label);
+                }
+            }
+        }
+        if let Some(linkeds) = self.properties.get("linked") {
+            let linkeds = linkeds.as_array().unwrap();
+            for linked in linkeds {
+                let linked = linked.as_object().unwrap();
+                if let Some(label) = linked.get("label") {
+                    let label = label.as_str().unwrap();
+                    labels.push(label);
+                }
+            }
+        }
+
+        // Descriptions
+        // General description
+        if let Some(description) = self.properties.get("description") {
+            let description = description.as_str().unwrap();
+            descriptions.push(description);
+        }
+        
+        // Recipe start description
+        if let Some(description) = self.properties.get("startdescription") {
+            let description = description.as_str().unwrap();
+            descriptions.push(description);
+        }
+
+        // Achievement description
+        if let Some(description) = self.properties.get("descriptionunlocked") {
+            let description = description.as_str().unwrap();
+            descriptions.push(description);
+        }
+
+        // Internal deck description
+        if let Some(description) = self
+            .properties
+            .get("internaldeck")
+            .and_then(|internal_deck| internal_deck.as_object().unwrap().get("description"))
+        {
+            let description = description.as_str().unwrap();
+            descriptions.push(description);
+        }
+        
+        // Slot description
+        if let Some(description) = self
+            .properties
+            .get("slot")
+            .and_then(|slot| slot.as_object().unwrap().get("description"))
+        {
+            let description = description.as_str().unwrap();
+            descriptions.push(description);
+        }
+
+        // Slots description
+        if let Some(slots) = self
+            .properties
+            .get("slots")
+            .and_then(|slots| slots.as_array())
+        {
+            for slot in slots {
+                let Some(description) = slot.as_object().unwrap().get("description") else {
+                    continue;
+                };
+                let description = description.as_str().unwrap();
+                descriptions.push(description);
+            }
+        }
+        
+        // Recipes description
+        if let Some(alts) = self.properties.get("alt") {
+            let alts = alts.as_array().unwrap();
+            for alt in alts {
+                let alt = alt.as_object().unwrap();
+                if let Some(description) = alt.get("description") {
+                    let description = description.as_str().unwrap();
+                    descriptions.push(description);
+                }
+                if let Some(description) = alt.get("startdescription") {
+                    let description = description.as_str().unwrap();
+                    descriptions.push(description);
+                }
+            }
+        }
+        if let Some(linkeds) = self.properties.get("linked") {
+            let linkeds = linkeds.as_array().unwrap();
+            for linked in linkeds {
+                let linked = linked.as_object().unwrap();
+                if let Some(description) = linked.get("startdescription") {
+                    let description = description.as_str().unwrap();
+                    descriptions.push(description);
+                }
+            }
+        }
+        
+        // Draw message description
+        if let Some(draw_messages) = self.properties.get("drawmessages") {
+            let draw_messages = draw_messages.as_object().unwrap();
+            for (_, message) in draw_messages {
+                descriptions.push(message.as_str().unwrap());
+            }
+        }
+
+        Text {
+            labels,
+            descriptions,
+        }
+    }
 }
 
 // Consider objects with same group and same id are game object and its
@@ -52,6 +216,18 @@ impl Object {
 pub(crate) struct Key {
     pub(crate) group: String,
     pub(crate) id: String,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct Text<'a> {
+    pub(crate) labels: Vec<&'a str>,
+    pub(crate) descriptions: Vec<&'a str>,
+}
+
+#[derive(Debug)]
+pub(crate) struct Texts<'a> {
+    pub(crate) labels: Vec<Vec<&'a str>>,
+    pub(crate) descriptions: Vec<Vec<&'a str>>,
 }
 
 // #[derive(Debug)]
