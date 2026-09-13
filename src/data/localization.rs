@@ -27,7 +27,7 @@ pub(crate) struct LocalizationStr {
     pub(crate) code: &'static str,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct LocalizedObject {
     pub(crate) core: Object,
     pub(crate) localizations: Localization,

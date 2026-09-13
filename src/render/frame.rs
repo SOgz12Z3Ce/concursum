@@ -1,4 +1,4 @@
-use crate::{data::{DATA, localization::LocalizedObject}, search::SearchResult};
+use crate::{data::{Data, localization::LocalizedObject}, search::SearchResult};
 use maud::{Markup, html};
 use tantivy::snippet::Snippet;
 
@@ -36,12 +36,12 @@ pub(crate) fn header() -> Markup {
     }
 }
 
-pub(crate) fn sidebar(expanded_group: Option<String>, active_id: Option<String>) -> Markup {
-    let groups = &DATA.groups;
-    let group_files = &DATA.group_files;
-    let files = &DATA.files;
-    let file_objects = &DATA.file_objects;
-    let objects = &DATA.localized_objects;
+pub(crate) fn sidebar(cs_data: &Data, expanded_group: Option<String>, active_id: Option<String>) -> Markup {
+    let groups = &cs_data.groups;
+    let group_files = &cs_data.group_files;
+    let files = &cs_data.files;
+    let file_objects = &cs_data.file_objects;
+    let objects = &cs_data.localized_objects;
     html! {
         div id="sidebar" {
             div id="sections" {
@@ -58,9 +58,9 @@ pub(crate) fn sidebar(expanded_group: Option<String>, active_id: Option<String>)
                                     @let group = object.group();
                                     @let id = object.id();
                                     @if active_id.as_ref().is_some_and(|i| i == id) {
-                                        a id="section-item-active" class="section-item" href=(format!("/{group}/{id}")) {(id)}
+                                        a id="section-item-active" class="section-item" href=(format!("/cs/{group}/{id}")) {(id)}
                                     } @else {
-                                        a class="section-item" href=(format!("/{group}/{id}")) {(id)}
+                                        a class="section-item" href=(format!("/cs/{group}/{id}")) {(id)}
                                     }
                                 }
                             }
@@ -146,10 +146,15 @@ pub(crate) fn object_fields(object: &LocalizedObject) -> Markup {
     }
 }
 
-pub(crate) fn search(search_results: Vec<SearchResult>) -> Markup {
+pub(crate) fn search(cs_data: &Data, search_results: Vec<SearchResult>) -> Markup {
     let results: Vec<(&LocalizedObject, &Snippet)> = search_results
         .iter()
-        .map(|result| (DATA.localized_objects.get(result.index).unwrap(), &result.snippet))
+        .map(|result| {
+            (
+                cs_data.localized_objects.get(result.index).unwrap(),
+                &result.snippet,
+            )
+        })
         .collect();
 
     html! {
@@ -161,7 +166,7 @@ pub(crate) fn search(search_results: Vec<SearchResult>) -> Markup {
             @for (object, snippet) in results {
                 div class="search-result" {
                     h3 class="search-result-title" {
-                        a href=(format!("/{}/{}", object.group(), object.id())) {(object.id())}
+                        a href=(format!("cs/{}/{}", object.group(), object.id())) {(object.id())}
                     }
                     ul {
                         li {

@@ -1,7 +1,7 @@
 use crate::data::files::File;
 use serde_json::{Map, Value};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Object {
     pub(crate) group: String,
     pub(crate) location: String,
@@ -212,7 +212,7 @@ impl Object {
 
 // Consider objects with same group and same id are game object and its
 // localization object.
-#[derive(Debug, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub(crate) struct Key {
     pub(crate) group: String,
     pub(crate) id: String,

@@ -1,5 +1,5 @@
-use crate::data::DATA;
-use std::{collections::HashMap, sync::LazyLock};
+use crate::data::Data;
+use std::collections::HashMap;
 use tantivy::{
     Index, TantivyDocument,
     collector::TopDocs,
@@ -20,12 +20,14 @@ static MEMORY_BUDGET: usize = 50_000_000;
 
 static KEYWORDS_PARAM_NAME: &'static str = "keywords";
 
-struct SearchEngine {
+#[derive(Debug, Clone)]
+pub(crate) struct SearchEngine {
     pub(crate) index: Index,
     pub(crate) fields: Fields,
 }
 
-struct Fields {
+#[derive(Debug, Clone)]
+pub(crate) struct Fields {
     pub(crate) index: Field,
     pub(crate) label: Field,
     pub(crate) description: Field,
@@ -36,7 +38,7 @@ pub(crate) struct SearchResult {
     pub(crate) snippet: Snippet,
 }
 
-static INDEX: LazyLock<SearchEngine> = LazyLock::new(|| {
+pub(crate) fn index(cs_data: &Data) -> SearchEngine {
     let Fields {
         index: index_field,
         label: label_field,
@@ -71,10 +73,9 @@ static INDEX: LazyLock<SearchEngine> = LazyLock::new(|| {
     index
         .tokenizers()
         .register(JIEBA_TOKENIZER_NAME, JiebaTokenizer::default());
-
     let mut writer = index.writer(MEMORY_BUDGET).unwrap();
-    let texts = DATA.texts();
-    for index in 0..DATA.localized_objects.len() {
+    let texts = cs_data.texts();
+    for index in 0..cs_data.localized_objects.len() {
         let mut document = doc!(
             index_field => index as u64,
         );
@@ -90,7 +91,6 @@ static INDEX: LazyLock<SearchEngine> = LazyLock::new(|| {
         writer.add_document(document).unwrap();
     }
     writer.commit().unwrap();
-
     SearchEngine {
         index,
         fields: Fields {
@@ -99,9 +99,12 @@ static INDEX: LazyLock<SearchEngine> = LazyLock::new(|| {
             description: description_field,
         },
     }
-});
+}
 
-pub(crate) fn search(params: HashMap<String, String>) -> Vec<SearchResult> {
+pub(crate) fn search(
+    cs_index: &SearchEngine,
+    params: HashMap<String, String>,
+) -> Vec<SearchResult> {
     let Some(keyword) = params.get(KEYWORDS_PARAM_NAME) else {
         return Vec::new();
     };
@@ -114,7 +117,7 @@ pub(crate) fn search(params: HashMap<String, String>) -> Vec<SearchResult> {
                 label: label_field,
                 description: description_field,
             },
-    } = &*INDEX;
+    } = cs_index;
     let index_field = index.schema().get_field(INDEX_FIELD_NAME).unwrap();
 
     let default_fields = vec![*label_field, *description_field];

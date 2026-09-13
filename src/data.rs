@@ -3,16 +3,18 @@ pub(crate) mod localization;
 pub(crate) mod object;
 
 use crate::data::{
-    files::File, localization::LocalizedObject, object::{Key, Object, Texts},
+    files::File,
+    localization::LocalizedObject,
+    object::{Key, Object, Texts},
 };
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
-    sync::LazyLock,
 };
 
-pub(crate) static DATA: LazyLock<Data> = LazyLock::new(|| {
-    let base = Path::new("content/cs");
+pub(crate) fn load<P: AsRef<Path>>(base_dir: P) -> Data {
+    let base_path = base_dir.as_ref();
+    let base = base_path.join("content/cs");
     let core_files = files::load(base.join("core"));
     let localization_files: [Vec<File>; localization::LOCALIZATION_COUNT] =
         localization::LOCALIZATION_STRS
@@ -21,7 +23,6 @@ pub(crate) static DATA: LazyLock<Data> = LazyLock::new(|| {
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
-
     let core_objects = Object::from_files(core_files);
     let localization_objects: [Vec<Object>; localization::LOCALIZATION_COUNT] = localization_files
         .into_iter()
@@ -29,7 +30,6 @@ pub(crate) static DATA: LazyLock<Data> = LazyLock::new(|| {
         .collect::<Vec<_>>()
         .try_into()
         .unwrap();
-
     let localized_objects = LocalizedObject::from_objects(core_objects, localization_objects);
     let mut localized_objects: Vec<(Key, LocalizedObject)> =
         localized_objects.into_iter().collect();
@@ -38,7 +38,6 @@ pub(crate) static DATA: LazyLock<Data> = LazyLock::new(|| {
             .cmp(b.group())
             .then_with(|| a.location().cmp(b.location()))
     });
-
     let (index, localized_objects): (HashMap<Key, usize>, Vec<LocalizedObject>) = localized_objects
         .into_iter()
         .enumerate()
@@ -58,7 +57,6 @@ pub(crate) static DATA: LazyLock<Data> = LazyLock::new(|| {
         .into_iter()
         .collect();
     files.sort();
-
     let mut group_files: HashMap<String, HashSet<usize>> = HashMap::new();
     let mut file_objects: HashMap<String, Vec<usize>> = HashMap::new();
     for (index, object) in localized_objects.iter().enumerate() {
@@ -71,12 +69,10 @@ pub(crate) static DATA: LazyLock<Data> = LazyLock::new(|| {
             .insert(files.iter().position(|f| f == file).unwrap());
         file_objects.entry(file.to_owned()).or_default().push(index);
     }
-
     let group_files = group_files
         .into_iter()
         .map(|(key, value)| (key, value.into_iter().collect::<Vec<_>>()))
         .collect();
-
     Data {
         index,
         localized_objects,
@@ -85,9 +81,9 @@ pub(crate) static DATA: LazyLock<Data> = LazyLock::new(|| {
         group_files,
         file_objects,
     }
-});
+}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Data {
     pub(crate) index: HashMap<Key, usize>,
 
