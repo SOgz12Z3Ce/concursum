@@ -51,7 +51,7 @@ static INDEX: LazyLock<SearchEngine> = LazyLock::new(|| {
                 .set_indexing_options(
                     TextFieldIndexing::default()
                         .set_tokenizer(JIEBA_TOKENIZER_NAME)
-                        .set_index_option(IndexRecordOption::Basic),
+                        .set_index_option(IndexRecordOption::WithFreqsAndPositions),
                 )
                 .set_stored(),
         );
