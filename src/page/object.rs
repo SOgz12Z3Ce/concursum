@@ -1,4 +1,4 @@
-use crate::data::localization::LocalizedObject;
+use crate::data::cs::localization::LocalizedObject;
 use maud::{Markup, html};
 
 pub(crate) fn content(object: &LocalizedObject) -> Markup {

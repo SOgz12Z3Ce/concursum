@@ -1,5 +1,5 @@
 use crate::{
-    data::{Data, localization::LocalizedObject},
+    data::{Data, cs::localization::LocalizedObject},
     search::SearchResult,
 };
 use maud::{Markup, html};

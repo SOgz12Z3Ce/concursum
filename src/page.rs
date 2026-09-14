@@ -3,10 +3,8 @@ mod index;
 mod object;
 mod search;
 
-use crate::{
-    app::Resource,
-    data::{Data, object::Key},
-};
+use crate::data::cs::object::Key;
+use crate::{app::Resource, data::Data};
 use axum::{
     extract::{Path, Query, State},
     response::Html,

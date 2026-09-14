@@ -1,10 +1,8 @@
-mod files;
-pub(crate) mod localization;
-pub(crate) mod object;
+pub(crate) mod cs;
 
-use crate::data::{
-    files::File,
-    localization::LocalizedObject,
+use crate::data::cs::{
+    files::{self, File},
+    localization::{self, LocalizedObject},
     object::{Key, Object, Texts},
 };
 use std::{

@@ -1,4 +1,4 @@
-use crate::data::object::{Key, Object};
+use crate::data::cs::object::{Key, Object};
 use std::collections::HashMap;
 
 macro_rules! localization_str {
