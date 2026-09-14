@@ -1,6 +1,6 @@
 use crate::{
     data::{self, Data},
-    render::{index, page, search},
+    page::{index, object, search},
     search::{self, SearchEngine},
 };
 use axum::{Router, routing};
@@ -37,7 +37,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .route("/", routing::get(index))
         .route_service("/favicon.ico", ServeFile::new(&favicon_path))
         .nest_service("/static", ServeDir::new(&static_dir))
-        .route("/cs/{group}/{id}", routing::get(page))
+        .route("/cs/{group}/{id}", routing::get(object))
         .route("/search", routing::get(search))
         .with_state(state);
 

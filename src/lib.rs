@@ -1,6 +1,6 @@
 mod app;
 mod data;
-mod render;
+mod page;
 mod search;
 
 pub use app::run;
