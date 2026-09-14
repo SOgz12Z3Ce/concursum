@@ -1,4 +1,9 @@
-use crate::{data::cs::file::File, error::Error};
+use std::str::FromStr;
+
+use crate::{
+    data::cs::{file::File, text::Text},
+    error::Error,
+};
 use serde_json::{Map, Value};
 
 #[derive(Debug)]
@@ -7,7 +12,35 @@ pub(crate) struct Object<'a> {
     properties: &'a Map<String, Value>,
 }
 
-#[derive(Debug)]
+impl<'a> Object<'a> {
+    pub(crate) fn group(&self) -> Result<Group, Error> {
+        self.file.group()?.parse()
+    }
+
+    pub(crate) fn location(&self) -> &String {
+        self.file.location()
+    }
+
+    pub(crate) fn properties(&self) -> &Map<String, Value> {
+        self.properties
+    }
+
+    pub(crate) fn id(&self) -> Result<&str, Error> {
+        let properties = self.properties();
+        let Some(id) = properties.get("id") else {
+            return Err(Error::JsonSchema {
+                value: Value::Object(properties.to_owned()),
+                message: String::from("expected object has an \"id\" member"),
+            });
+        };
+        id.as_str().ok_or_else(|| Error::JsonSchema {
+            value: id.to_owned(),
+            message: String::from("expected value of \"id\" member is a string"),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) enum Group {
     Achievement,
     Culture,
@@ -23,28 +56,41 @@ pub(crate) enum Group {
     Verb,
 }
 
-impl<'a> Object<'a> {
-    pub(crate) fn group(&self) -> Result<&String, Error> {
-        self.file.group()
+impl FromStr for Group {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "achievements" => Ok(Self::Achievement),
+            "cultures" => Ok(Self::Culture),
+            "decks" => Ok(Self::Deck),
+            "dicta" => Ok(Self::Dictum),
+            "elements" => Ok(Self::Element),
+            "endings" => Ok(Self::Ending),
+            "legacies" => Ok(Self::Legacy),
+            "levers" => Ok(Self::Lever),
+            "portals" => Ok(Self::Portal),
+            "recipes" => Ok(Self::Recipe),
+            "settings" => Ok(Self::Setting),
+            "verbs" => Ok(Self::Verb),
+            _ => Err(Error::Group(s.to_owned())),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub(crate) struct Key<'a> {
+    group: Group,
+    id: &'a str,
+}
+
+impl<'a> Key<'a> {
+    pub(crate) fn group(&self) -> Group {
+        self.group
     }
 
-    pub(crate) fn location(&self) -> &String {
-        self.file.location()
-    }
-
-    pub(crate) fn id(&self) -> Result<&str, Error> {
-        let Some(id) = self.properties.get("id") else {
-            return Err(Error::JsonSchema {
-                value: Value::Object(self.properties.to_owned()),
-                message: String::from("expected object has an \"id\" member"),
-            });
-        };
-        id.as_str().ok_or_else(|| {
-            Error::JsonSchema {
-                value: id.to_owned(),
-                message: String::from("expected value of \"id\" member is a string"),
-            }
-        })
+    pub(crate) fn id(&self) -> &str {
+        self.id
     }
 }
 
@@ -90,158 +136,6 @@ impl<'a> Object<'a> {
 //             mut labels,
 //             mut descriptions,
 //         } = Text::default();
-
-//         // Labels
-//         // General label
-//         if let Some(label) = self.properties.get("label") {
-//             let label = label.as_str().unwrap();
-//             labels.push(label);
-//         }
-
-//         // Slot label
-//         if let Some(label) = self
-//             .properties
-//             .get("slot")
-//             .and_then(|slot| slot.as_object().unwrap().get("label"))
-//         {
-//             let label = label.as_str().unwrap();
-//             labels.push(label);
-//         }
-
-//         // Slots label
-//         if let Some(slots) = self
-//             .properties
-//             .get("slots")
-//             .and_then(|slots| slots.as_array())
-//         {
-//             for slot in slots {
-//                 let Some(label) = slot.as_object().unwrap().get("label") else {
-//                     continue;
-//                 };
-//                 let label = label.as_str().unwrap();
-//                 labels.push(label);
-//             }
-//         }
-
-//         // Internal deck label
-//         if let Some(label) = self
-//             .properties
-//             .get("internaldeck")
-//             .and_then(|internal_deck| internal_deck.as_object().unwrap().get("label"))
-//         {
-//             let label = label.as_str().unwrap();
-//             labels.push(label);
-//         }
-
-//         // Recipes label
-//         if let Some(alts) = self.properties.get("alt") {
-//             let alts = alts.as_array().unwrap();
-//             for alt in alts {
-//                 let alt = alt.as_object().unwrap();
-//                 if let Some(label) = alt.get("label") {
-//                     let label = label.as_str().unwrap();
-//                     labels.push(label);
-//                 }
-//             }
-//         }
-//         if let Some(linkeds) = self.properties.get("linked") {
-//             let linkeds = linkeds.as_array().unwrap();
-//             for linked in linkeds {
-//                 let linked = linked.as_object().unwrap();
-//                 if let Some(label) = linked.get("label") {
-//                     let label = label.as_str().unwrap();
-//                     labels.push(label);
-//                 }
-//             }
-//         }
-
-//         // Descriptions
-//         // General description
-//         if let Some(description) = self.properties.get("description") {
-//             let description = description.as_str().unwrap();
-//             descriptions.push(description);
-//         }
-
-//         // Recipe start description
-//         if let Some(description) = self.properties.get("startdescription") {
-//             let description = description.as_str().unwrap();
-//             descriptions.push(description);
-//         }
-
-//         // Achievement description
-//         if let Some(description) = self.properties.get("descriptionunlocked") {
-//             let description = description.as_str().unwrap();
-//             descriptions.push(description);
-//         }
-
-//         // Internal deck description
-//         if let Some(description) = self
-//             .properties
-//             .get("internaldeck")
-//             .and_then(|internal_deck| internal_deck.as_object().unwrap().get("description"))
-//         {
-//             let description = description.as_str().unwrap();
-//             descriptions.push(description);
-//         }
-
-//         // Slot description
-//         if let Some(description) = self
-//             .properties
-//             .get("slot")
-//             .and_then(|slot| slot.as_object().unwrap().get("description"))
-//         {
-//             let description = description.as_str().unwrap();
-//             descriptions.push(description);
-//         }
-
-//         // Slots description
-//         if let Some(slots) = self
-//             .properties
-//             .get("slots")
-//             .and_then(|slots| slots.as_array())
-//         {
-//             for slot in slots {
-//                 let Some(description) = slot.as_object().unwrap().get("description") else {
-//                     continue;
-//                 };
-//                 let description = description.as_str().unwrap();
-//                 descriptions.push(description);
-//             }
-//         }
-
-//         // Recipes description
-//         if let Some(alts) = self.properties.get("alt") {
-//             let alts = alts.as_array().unwrap();
-//             for alt in alts {
-//                 let alt = alt.as_object().unwrap();
-//                 if let Some(description) = alt.get("description") {
-//                     let description = description.as_str().unwrap();
-//                     descriptions.push(description);
-//                 }
-//                 if let Some(description) = alt.get("startdescription") {
-//                     let description = description.as_str().unwrap();
-//                     descriptions.push(description);
-//                 }
-//             }
-//         }
-//         if let Some(linkeds) = self.properties.get("linked") {
-//             let linkeds = linkeds.as_array().unwrap();
-//             for linked in linkeds {
-//                 let linked = linked.as_object().unwrap();
-//                 if let Some(description) = linked.get("startdescription") {
-//                     let description = description.as_str().unwrap();
-//                     descriptions.push(description);
-//                 }
-//             }
-//         }
-
-//         // Draw message description
-//         if let Some(draw_messages) = self.properties.get("drawmessages") {
-//             let draw_messages = draw_messages.as_object().unwrap();
-//             for (_, message) in draw_messages {
-//                 descriptions.push(message.as_str().unwrap());
-//             }
-//         }
 
 //         Text {
 //             labels,

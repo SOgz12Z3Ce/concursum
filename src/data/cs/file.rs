@@ -50,7 +50,7 @@ impl File {
         let Some((group, objects)) = root.iter().next() else {
             return Err(Error::JsonSchema {
                 value: Value::Object(root.to_owned()),
-                message: String::from("expected root object has one name/value pair"),
+                message: String::from("expected root object has one member"),
             });
         };
         Ok((group, objects))

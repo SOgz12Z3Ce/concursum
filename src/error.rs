@@ -25,4 +25,7 @@ pub(crate) enum Error {
 
     #[error("bad JSON schema: '{value}' ({message})")]
     JsonSchema { value: Value, message: String },
+
+    #[error("bad group: '{0}")]
+    Group(String)
 }
