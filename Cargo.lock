@@ -376,6 +376,7 @@ dependencies = [
  "sha2",
  "tantivy",
  "tantivy-jieba",
+ "thiserror",
  "tokio",
  "tower-http",
  "walkdir",
