@@ -1,5 +1,5 @@
 use crate::{
-    data::{self, Data},
+    data::cs::{Data, DataView},
     page::{index, object, search},
     search::{self, SearchEngine},
 };
@@ -12,10 +12,10 @@ use std::{
 use tokio::net::TcpListener;
 use tower_http::services::{ServeDir, ServeFile};
 
-#[derive(Debug, Clone)]
-pub(crate) struct Resource {
-    pub(crate) cs_data: Data,
-    pub(crate) cs_index: SearchEngine,
+#[derive(Debug)]
+pub(crate) struct Resource<'a> {
+    pub(crate) data_view: DataView<'a>,
+    pub(crate) search_engine: SearchEngine,
 }
 
 pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,11 +26,13 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let static_dir = base_dir.join("static");
     let favicon_path = static_dir.join("images/favicon.ico");
 
-    let cs_data = data::load(&base_dir);
-    let cs_index = search::index(&cs_data);
+    let data = Box::new(Data::load(&base_dir)?);
+    let data = Box::leak(data);
+    let data_view = data.view()?;
+    let search_engine = search::index(&data_view)?;
     let state = Arc::new(Resource {
-        cs_data: cs_data,
-        cs_index,
+        data_view,
+        search_engine,
     });
 
     let service = Router::new()

@@ -1,134 +1,111 @@
 pub(crate) mod cs;
 
-use crate::data::cs::{
-    files::{self, File},
-    localization::{self, LocalizedObject},
-    object::{Key, Object, Texts},
-};
-use std::{
-    collections::{HashMap, HashSet},
-    path::Path,
-};
+use crate::error::{JsonKind, JsonSchemaError, JsonSchemaErrorKind};
+use serde_json::{Map, Value};
 
-pub(crate) fn load<P: AsRef<Path>>(base_dir: P) -> Data {
-    let base_path = base_dir.as_ref();
-    let base = base_path.join("content/cs");
-    let core_files = files::load(base.join("core"));
-    let localization_files: [Vec<File>; localization::LOCALIZATION_COUNT] =
-        localization::LOCALIZATION_STRS
-            .iter()
-            .map(|localization_str| files::load(base.join(localization_str.folder)))
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-    let core_objects = Object::from_files(core_files);
-    let localization_objects: [Vec<Object>; localization::LOCALIZATION_COUNT] = localization_files
-        .into_iter()
-        .map(|files| Object::from_files(files))
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
-    let localized_objects = LocalizedObject::from_objects(core_objects, localization_objects);
-    let mut localized_objects: Vec<(Key, LocalizedObject)> =
-        localized_objects.into_iter().collect();
-    localized_objects.sort_by(|(_, a), (_, b)| {
-        a.group()
-            .cmp(b.group())
-            .then_with(|| a.location().cmp(b.location()))
-    });
-    let (index, localized_objects): (HashMap<Key, usize>, Vec<LocalizedObject>) = localized_objects
-        .into_iter()
-        .enumerate()
-        .map(|(index, (key, object))| ((key, index), object))
-        .collect();
-    let mut groups: Vec<String> = localized_objects
-        .iter()
-        .map(|object| object.group().to_owned())
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect();
-    groups.sort();
-    let mut files: Vec<String> = localized_objects
-        .iter()
-        .map(|object| object.location().to_owned())
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect();
-    files.sort();
-    let mut group_files: HashMap<String, HashSet<usize>> = HashMap::new();
-    let mut file_objects: HashMap<String, Vec<usize>> = HashMap::new();
-    for (index, object) in localized_objects.iter().enumerate() {
-        let group = object.group();
-        let file = object.location();
+pub(crate) trait JsonValueExt {
+    #[allow(unused)] // No need to read such type now.
+    fn try_as_null(&self) -> Result<(), JsonSchemaError>;
 
-        group_files
-            .entry(group.to_owned())
-            .or_default()
-            .insert(files.iter().position(|f| f == file).unwrap());
-        file_objects.entry(file.to_owned()).or_default().push(index);
+    fn try_as_bool(&self) -> Result<bool, JsonSchemaError>;
+
+    #[allow(unused)] // No need to read such type now.
+    fn try_as_i64(&self) -> Result<i64, JsonSchemaError>;
+
+    #[allow(unused)] // No need to read such type now.
+    fn try_as_u64(&self) -> Result<u64, JsonSchemaError>;
+
+    #[allow(unused)] // No need to read such type now.
+    fn try_as_f64(&self) -> Result<f64, JsonSchemaError>;
+
+    fn try_as_str(&self) -> Result<&str, JsonSchemaError>;
+
+    fn try_as_array(&self) -> Result<&Vec<Value>, JsonSchemaError>;
+
+    fn try_as_object(&self) -> Result<&Map<String, Value>, JsonSchemaError>;
+}
+
+impl JsonValueExt for Value {
+    fn try_as_null(&self) -> Result<(), JsonSchemaError> {
+        self.as_null().ok_or_else(|| {
+            JsonSchemaError::new(
+                self.to_owned(),
+                JsonSchemaErrorKind::UnexpectedKind(JsonKind::Null),
+            )
+        })
     }
-    let group_files = group_files
-        .into_iter()
-        .map(|(key, value)| (key, value.into_iter().collect::<Vec<_>>()))
-        .collect();
-    Data {
-        index,
-        localized_objects,
-        groups,
-        files,
-        group_files,
-        file_objects,
+
+    fn try_as_bool(&self) -> Result<bool, JsonSchemaError> {
+        self.as_bool().ok_or_else(|| {
+            JsonSchemaError::new(
+                self.to_owned(),
+                JsonSchemaErrorKind::UnexpectedKind(JsonKind::Bool),
+            )
+        })
+    }
+
+    fn try_as_i64(&self) -> Result<i64, JsonSchemaError> {
+        self.as_i64().ok_or_else(|| {
+            JsonSchemaError::new(
+                self.to_owned(),
+                JsonSchemaErrorKind::UnexpectedKind(JsonKind::Number),
+            )
+        })
+    }
+
+    fn try_as_u64(&self) -> Result<u64, JsonSchemaError> {
+        self.as_u64().ok_or_else(|| {
+            JsonSchemaError::new(
+                self.to_owned(),
+                JsonSchemaErrorKind::UnexpectedKind(JsonKind::Number),
+            )
+        })
+    }
+
+    fn try_as_f64(&self) -> Result<f64, JsonSchemaError> {
+        self.as_f64().ok_or_else(|| {
+            JsonSchemaError::new(
+                self.to_owned(),
+                JsonSchemaErrorKind::UnexpectedKind(JsonKind::Number),
+            )
+        })
+    }
+
+    fn try_as_str(&self) -> Result<&str, JsonSchemaError> {
+        self.as_str().ok_or_else(|| {
+            JsonSchemaError::new(
+                self.to_owned(),
+                JsonSchemaErrorKind::UnexpectedKind(JsonKind::String),
+            )
+        })
+    }
+
+    fn try_as_array(&self) -> Result<&Vec<Value>, JsonSchemaError> {
+        self.as_array().ok_or_else(|| {
+            JsonSchemaError::new(
+                self.to_owned(),
+                JsonSchemaErrorKind::UnexpectedKind(JsonKind::Array),
+            )
+        })
+    }
+
+    fn try_as_object(&self) -> Result<&Map<String, Value>, JsonSchemaError> {
+        self.as_object().ok_or_else(|| {
+            JsonSchemaError::new(
+                self.to_owned(),
+                JsonSchemaErrorKind::UnexpectedKind(JsonKind::Object),
+            )
+        })
     }
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct Data {
-    pub(crate) index: HashMap<Key, usize>,
-
-    pub(crate) localized_objects: Vec<LocalizedObject>,
-    pub(crate) groups: Vec<String>,
-    pub(crate) files: Vec<String>,
-
-    pub(crate) group_files: HashMap<String, Vec<usize>>,
-    pub(crate) file_objects: HashMap<String, Vec<usize>>,
+pub(crate) trait JsonObjectExt {
+    fn try_get(&self, key: &str) -> Result<&Value, JsonSchemaError>;
 }
 
-impl Data {
-    pub(crate) fn object(&self, key: &Key) -> Option<&LocalizedObject> {
-        let index = self.index.get(&key);
-        index.and_then(|index| Some(&self.localized_objects[*index]))
-    }
-
-    pub(crate) fn texts<'a>(&'a self) -> Texts<'a> {
-        let Texts {
-            mut labels,
-            mut descriptions,
-        };
-        labels = Vec::new();
-        descriptions = Vec::new();
-
-        for object in &self.localized_objects {
-            let mut cur_labels = Vec::new();
-            let mut cur_descriptions = Vec::new();
-
-            let core = &object.core;
-            let texts = core.texts();
-            cur_labels.extend(texts.labels);
-            cur_descriptions.extend(texts.descriptions);
-
-            if let Some(object) = &object.localizations[5] {
-                let texts = object.texts();
-                cur_labels.extend(texts.labels);
-                cur_descriptions.extend(texts.descriptions);
-            };
-
-            labels.push(cur_labels);
-            descriptions.push(cur_descriptions);
-        }
-
-        Texts {
-            labels,
-            descriptions,
-        }
+impl JsonObjectExt for Map<String, Value> {
+    fn try_get(&self, key: &str) -> Result<&Value, JsonSchemaError> {
+        self.get(key)
+            .ok_or(JsonSchemaError::missing(self.to_owned(), key.to_owned()))
     }
 }

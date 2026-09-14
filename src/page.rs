@@ -3,46 +3,53 @@ mod index;
 mod object;
 mod search;
 
+use crate::data::cs::DataView;
 use crate::data::cs::object::Key;
-use crate::{app::Resource, data::Data};
+use crate::{app::Resource, error::Error};
 use axum::{
     extract::{Path, Query, State},
     response::Html,
 };
 use maud::{DOCTYPE, Markup, html};
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
-pub(crate) async fn index(State(resource): State<Arc<Resource>>) -> Html<String> {
-    page(&resource.cs_data, index::content())
+static KEYWORDS_PARAM_NAME: &'static str = "keywords";
+
+pub(crate) async fn index<'a>(
+    State(resource): State<Arc<Resource<'a>>>,
+) -> Result<Html<String>, Error> {
+    page(&resource.data_view, index::content())
 }
 
-pub(crate) async fn object(
-    State(resource): State<Arc<Resource>>,
+pub(crate) async fn object<'a>(
+    State(resource): State<Arc<Resource<'a>>>,
     Path((group, id)): Path<(String, String)>,
-) -> Html<String> {
-    let key = Key {
-        group: group,
-        id: id,
-    };
+) -> Result<Html<String>, Error> {
+    let group = group.parse()?;
+    let key = Key::new(group, &id);
     let object = resource
-        .cs_data
-        .object(&key)
-        .expect(&format!("not found: {}/{}", key.group, key.id));
-    page(&resource.cs_data, object::content(&object))
+        .data_view
+        .index(&key)
+        .ok_or(Error::ObjectNotFound { group, id })?;
+    Ok(page(&resource.data_view, object::content(&object)?)?)
 }
 
-pub(crate) async fn search(
-    State(resource): State<Arc<Resource>>,
+pub(crate) async fn search<'a>(
+    State(resource): State<Arc<Resource<'a>>>,
     Query(params): Query<HashMap<String, String>>,
-) -> Html<String> {
-    let result = crate::search::search(&resource.cs_index, params);
-    page(
-        &resource.cs_data,
-        search::content(&resource.cs_data, result),
-    )
+) -> Result<Html<String>, Error> {
+    let Some(keywords) = params.get(KEYWORDS_PARAM_NAME) else {
+        return Err(Error::EmptySearch);
+    };
+    let results = crate::search::search(&resource.search_engine, keywords)?;
+    Ok(page(
+        &resource.data_view,
+        search::content(&resource.data_view, results)?,
+    )?)
 }
 
-fn page(data: &Data, content: Markup) -> Html<String> {
+fn page(data: &DataView, content: Markup) -> Result<Html<String>, Error> {
     let page = html! {
         (DOCTYPE)
         html {
@@ -50,12 +57,12 @@ fn page(data: &Data, content: Markup) -> Html<String> {
             body {
                 (frame::header())
                 div id="container" {
-                    (frame::sidebar(data, None, None))
+                    (frame::sidebar(data, None)?)
                     (content)
                 }
                 (frame::footer())
             }
         }
     };
-    Html(page.into_string())
+    Ok(Html(page.into_string()))
 }

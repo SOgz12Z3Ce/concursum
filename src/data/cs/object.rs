@@ -1,287 +1,199 @@
-use crate::data::files::File;
+use crate::{
+    data::{
+        JsonObjectExt, JsonValueExt,
+        cs::{file::File, group::Group},
+    },
+    error::{Error, JsonSchemaError},
+};
 use serde_json::{Map, Value};
+use std::{fmt::Display, vec::IntoIter};
 
-#[derive(Debug, Clone)]
-pub(crate) struct Object {
-    pub(crate) group: String,
-    pub(crate) location: String,
-    pub(crate) properties: Map<String, Value>, // TODO: Fill up the type
+#[derive(Debug)]
+pub(crate) struct Object<'a> {
+    file: &'a File,
+    properties: &'a Map<String, Value>,
 }
 
-impl Object {
-    pub(crate) fn from_file(file: File) -> Vec<Self> {
-        let group = file.group();
-        let location = &file.location;
-        let objects = file.objects();
-
-        objects
+impl<'a> Object<'a> {
+    pub(crate) fn from_file(file: &'a File) -> Result<Vec<Self>, JsonSchemaError> {
+        file.objects()?
             .iter()
-            .map(|object| {
-                let properties = object.as_object().unwrap().to_owned();
-                Self {
-                    group: group.to_owned(),
-                    location: location.to_owned(),
-                    properties,
-                }
+            .map(|properties| {
+                Ok(Self {
+                    file,
+                    properties: properties.try_as_object()?,
+                })
             })
             .collect()
     }
 
-    pub(crate) fn from_files(files: Vec<File>) -> Vec<Self> {
-        files
-            .into_iter()
-            .flat_map(|file| Self::from_file(file))
-            .collect()
+    pub(crate) fn from_files(files: &'a [File]) -> Result<Vec<Self>, JsonSchemaError> {
+        files.iter().try_fold(Vec::new(), |mut acc, file| {
+            acc.extend(Self::from_file(file)?);
+            Ok(acc)
+        })
     }
 
-    pub(crate) fn id(&self) -> &str {
-        self.properties.get("id").unwrap().as_str().unwrap()
+    pub(crate) fn group(&self) -> Result<Group, Error> {
+        self.file.group()?.parse()
     }
 
-    pub(crate) fn key(&self) -> Key {
-        Key {
-            group: self.group.to_owned(),
-            id: self.id().to_owned(),
-        }
+    pub(crate) fn key(&self) -> Result<Key<'a>, Error> {
+        Ok(Key::new(self.group()?, self.id()?))
     }
 
-    pub(crate) fn texts<'a>(&'a self) -> Text<'a> {
-        let Text {
-            mut labels,
-            mut descriptions,
-        } = Text::default();
+    pub(crate) fn properties(&self) -> &'a Map<String, Value> {
+        self.properties
+    }
 
-        // Labels
-        // General label
-        if let Some(label) = self.properties.get("label") {
-            let label = label.as_str().unwrap();
-            labels.push(label);
-        }
+    pub(crate) fn id(&self) -> Result<&'a str, JsonSchemaError> {
+        self.properties.try_get("id")?.try_as_str()
+    }
 
-        // Slot label
-        if let Some(label) = self
-            .properties
-            .get("slot")
-            .and_then(|slot| slot.as_object().unwrap().get("label"))
-        {
-            let label = label.as_str().unwrap();
-            labels.push(label);
-        }
-
-        // Slots label
-        if let Some(slots) = self
-            .properties
-            .get("slots")
-            .and_then(|slots| slots.as_array())
-        {
-            for slot in slots {
-                let Some(label) = slot.as_object().unwrap().get("label") else {
-                    continue;
+    pub(crate) fn icon(&self) -> Result<(Option<String>, Option<&'static str>), Error> {
+        let properties = self.properties;
+        let (icon, fallback) = match self.group()? {
+            Group::Achievements => {
+                let icon = properties
+                    .get("iconUnlocked")
+                    .map(|value| value.try_as_str())
+                    .transpose()?
+                    .map(|icon| format!("aspects/{icon}.png"));
+                let fallback = Some("aspects/_x.png");
+                (icon, fallback)
+            }
+            Group::Cultures => (None, None),
+            Group::Decks => (None, None),
+            Group::Dicta => (None, None),
+            Group::Elements => {
+                let is_aspect = properties
+                    .get("isAspect")
+                    .map(|value| value.try_as_bool())
+                    .transpose()?
+                    .unwrap_or(false);
+                let (prefix, fallback) = match is_aspect {
+                    true => ("aspects", "aspects/_x.png"),
+                    false => ("elements", "elements/_x.png"),
                 };
-                let label = label.as_str().unwrap();
-                labels.push(label);
-            }
-        }
+                let icon = properties
+                    .get("icon")
+                    .map(|value| value.try_as_str())
+                    .unwrap_or_else(|| self.id())?;
 
-        // Internal deck label
-        if let Some(label) = self
-            .properties
-            .get("internaldeck")
-            .and_then(|internal_deck| internal_deck.as_object().unwrap().get("label"))
-        {
-            let label = label.as_str().unwrap();
-            labels.push(label);
-        }
-
-        // Recipes label
-        if let Some(alts) = self.properties.get("alt") {
-            let alts = alts.as_array().unwrap();
-            for alt in alts {
-                let alt = alt.as_object().unwrap();
-                if let Some(label) = alt.get("label") {
-                    let label = label.as_str().unwrap();
-                    labels.push(label);
-                }
+                let icon = Some(format!("{prefix}/{icon}.png"));
+                let fallback = Some(fallback);
+                (icon, fallback)
             }
-        }
-        if let Some(linkeds) = self.properties.get("linked") {
-            let linkeds = linkeds.as_array().unwrap();
-            for linked in linkeds {
-                let linked = linked.as_object().unwrap();
-                if let Some(label) = linked.get("label") {
-                    let label = label.as_str().unwrap();
-                    labels.push(label);
-                }
+            Group::Endings => {
+                let icon = properties
+                    .get("image")
+                    .map(|value| value.try_as_str())
+                    .transpose()?
+                    .map(|icon| format!("endings/{icon}.png"));
+                (icon, None)
             }
-        }
-
-        // Descriptions
-        // General description
-        if let Some(description) = self.properties.get("description") {
-            let description = description.as_str().unwrap();
-            descriptions.push(description);
-        }
-        
-        // Recipe start description
-        if let Some(description) = self.properties.get("startdescription") {
-            let description = description.as_str().unwrap();
-            descriptions.push(description);
-        }
-
-        // Achievement description
-        if let Some(description) = self.properties.get("descriptionunlocked") {
-            let description = description.as_str().unwrap();
-            descriptions.push(description);
-        }
-
-        // Internal deck description
-        if let Some(description) = self
-            .properties
-            .get("internaldeck")
-            .and_then(|internal_deck| internal_deck.as_object().unwrap().get("description"))
-        {
-            let description = description.as_str().unwrap();
-            descriptions.push(description);
-        }
-        
-        // Slot description
-        if let Some(description) = self
-            .properties
-            .get("slot")
-            .and_then(|slot| slot.as_object().unwrap().get("description"))
-        {
-            let description = description.as_str().unwrap();
-            descriptions.push(description);
-        }
-
-        // Slots description
-        if let Some(slots) = self
-            .properties
-            .get("slots")
-            .and_then(|slots| slots.as_array())
-        {
-            for slot in slots {
-                let Some(description) = slot.as_object().unwrap().get("description") else {
-                    continue;
-                };
-                let description = description.as_str().unwrap();
-                descriptions.push(description);
+            Group::Legacies => {
+                // TODO: $derive goes here.
+                let icon = properties
+                    .get("image")
+                    .map(|value| value.try_as_str())
+                    .transpose()?
+                    .map(|icon| format!("legacies/{icon}.png"));
+                (icon, None)
             }
-        }
-        
-        // Recipes description
-        if let Some(alts) = self.properties.get("alt") {
-            let alts = alts.as_array().unwrap();
-            for alt in alts {
-                let alt = alt.as_object().unwrap();
-                if let Some(description) = alt.get("description") {
-                    let description = description.as_str().unwrap();
-                    descriptions.push(description);
-                }
-                if let Some(description) = alt.get("startdescription") {
-                    let description = description.as_str().unwrap();
-                    descriptions.push(description);
-                }
-            }
-        }
-        if let Some(linkeds) = self.properties.get("linked") {
-            let linkeds = linkeds.as_array().unwrap();
-            for linked in linkeds {
-                let linked = linked.as_object().unwrap();
-                if let Some(description) = linked.get("startdescription") {
-                    let description = description.as_str().unwrap();
-                    descriptions.push(description);
-                }
-            }
-        }
-        
-        // Draw message description
-        if let Some(draw_messages) = self.properties.get("drawmessages") {
-            let draw_messages = draw_messages.as_object().unwrap();
-            for (_, message) in draw_messages {
-                descriptions.push(message.as_str().unwrap());
-            }
-        }
-
-        Text {
-            labels,
-            descriptions,
-        }
+            Group::Levers => (None, None),
+            Group::Portals => (None, None), // TODO: The images are Texture2D resources.
+            Group::Recipes => (None, None),
+            Group::Settings => (None, None),
+            Group::Verbs => (
+                Some(format!("verbs/{}.png", self.id()?)),
+                Some("verbs/_x.png"),
+            ),
+        };
+        Ok((
+            icon.or_else(|| fallback.map(|path| String::from(path))),
+            fallback,
+        ))
     }
-}
-
-// Consider objects with same group and same id are game object and its
-// localization object.
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub(crate) struct Key {
-    pub(crate) group: String,
-    pub(crate) id: String,
-}
-
-#[derive(Debug, Default)]
-pub(crate) struct Text<'a> {
-    pub(crate) labels: Vec<&'a str>,
-    pub(crate) descriptions: Vec<&'a str>,
 }
 
 #[derive(Debug)]
-pub(crate) struct Texts<'a> {
-    pub(crate) labels: Vec<Vec<&'a str>>,
-    pub(crate) descriptions: Vec<Vec<&'a str>>,
+pub(crate) struct SortedObjects<'a> {
+    objects: Vec<Object<'a>>,
 }
 
-// #[derive(Debug)]
-// pub(crate) struct Objects {
-//     groups: Vec<String>,
-//     locations: Vec<String>,
-//     properties: Vec<Map<String, Value>>,
-// }
+impl<'a> SortedObjects<'a> {
+    pub(crate) fn new<T: IntoIterator<Item = Object<'a>>>(objects: T) -> Result<Self, Error> {
+        let mut objects: Vec<Object> = objects.into_iter().collect();
+        let mut indices: Vec<usize> = {
+            let mut key_indices = objects
+                .iter()
+                .enumerate()
+                .map(|(index, object)| Ok((index, object.key()?)))
+                .collect::<Result<Vec<_>, Error>>()?;
+            key_indices.sort_by(|(_, a), (_, b)| a.cmp(b));
+            key_indices.into_iter().map(|(idx, _)| idx).collect()
+        };
+        for i in 0..objects.len() {
+            while indices[i] != i {
+                let dest = indices[i];
+                objects.swap(i, dest);
+                indices.swap(i, dest);
+            }
+        }
+        Ok(Self { objects })
+    }
+}
 
-// impl<T: IntoIterator<Item = Object>> From<T> for Objects {
-//     fn from(value: T) -> Self {
-//         value.into_iter().fold(
-//             Self {
-//                 groups: Vec::new(),
-//                 locations: Vec::new(),
-//                 properties: Vec::new(),
-//             },
-//             |mut acc, object| {
-//                 acc.groups.push(object.group);
-//                 acc.locations.push(object.location);
-//                 acc.properties.push(object.properties);
-//                 acc
-//             },
-//         )
-//     }
-// }
+impl<'a> IntoIterator for SortedObjects<'a> {
+    type Item = Object<'a>;
 
-// #[derive(Debug)]
-// pub(crate) struct OptionObjects {
-//     groups: Vec<Option<String>>,
-//     locations: Vec<Option<String>>,
-//     properties: Vec<Option<Map<String, Value>>>,
-// }
+    type IntoIter = IntoIter<Object<'a>>;
 
-// impl<T: IntoIterator<Item = Option<Object>>> From<T> for OptionObjects {
-//     fn from(value: T) -> Self {
-//         value.into_iter().fold(
-//             Self {
-//                 groups: Vec::new(),
-//                 locations: Vec::new(),
-//                 properties: Vec::new(),
-//             },
-//             |mut acc, object: Option<Object>| {
-//                 if let Some(object) = object {
-//                     acc.groups.push(Some(object.group));
-//                     acc.locations.push(Some(object.location));
-//                     acc.properties.push(Some(object.properties));
-//                 } else {
-//                     acc.groups.push(None);
-//                     acc.locations.push(None);
-//                     acc.properties.push(None);
-//                 }
-//                 acc
-//             },
-//         )
-//     }
-// }
+    fn into_iter(self) -> Self::IntoIter {
+        self.objects.into_iter()
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct Key<'a> {
+    group: Group,
+    id: &'a str,
+}
+
+impl<'a> Key<'a> {
+    pub(crate) fn new(group: Group, id: &'a str) -> Self {
+        Self { group, id }
+    }
+
+    pub(crate) fn group(&self) -> Group {
+        self.group
+    }
+}
+
+impl<'a> Display for Key<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}/{}", self.group, self.id)
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct OwnedKey {
+    group: Group,
+    id: String,
+}
+
+impl<'a> From<Key<'a>> for OwnedKey {
+    fn from(value: Key<'a>) -> Self {
+        Self {
+            group: value.group,
+            id: value.id.to_owned(),
+        }
+    }
+}
+
+impl Display for OwnedKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}/{}", self.group, self.id)
+    }
+}

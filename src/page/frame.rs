@@ -1,4 +1,7 @@
-use crate::data::Data;
+use crate::{
+    data::cs::{DataView, group::Group, object::Key},
+    error::Error,
+};
 use maud::{Markup, html};
 
 pub(crate) fn head(title: &str) -> Markup {
@@ -35,32 +38,23 @@ pub(crate) fn header() -> Markup {
     }
 }
 
-pub(crate) fn sidebar(
-    cs_data: &Data,
-    expanded_group: Option<String>,
-    active_id: Option<String>,
-) -> Markup {
-    let groups = &cs_data.groups;
-    let group_files = &cs_data.group_files;
-    let files = &cs_data.files;
-    let file_objects = &cs_data.file_objects;
-    let objects = &cs_data.localized_objects;
-    html! {
+pub(crate) fn sidebar(data_view: &DataView, active_key: Option<Key>) -> Result<Markup, Error> {
+    Ok(html! {
         div id="sidebar" {
             div id="sections" {
-                @for group in groups {
+                @for group in Group::ALL {
                     div class="section-title" { (group) }
-                    div class=(format!("section-list{}", if expanded_group.as_ref().is_some_and(|g| g == group) {" section-list-opened"} else {""})) {
-                        @for &index in &group_files[group] {
+                    div class=(format!("section-list{}", if active_key.as_ref().is_some_and(|key| key.group() == group) {" section-list-opened"} else {""})) {
+                        @for location in data_view.file_locations(group) {
                             div class="section-file" {
-                                @let file = &files[index];
-                                div class="section-file-title" { (&file) }
+                                div class="section-file-title" { (location) }
 
-                                @for &index in &file_objects[file] {
-                                    @let object = objects.get(index).unwrap();
-                                    @let group = object.group();
-                                    @let id = object.id();
-                                    @if active_id.as_ref().is_some_and(|i| i == id) {
+                                @for object in data_view.location_objects(location) {
+                                    @let group = object.group()?;
+                                    @let id = object.id()?;
+                                    @let this_key = object.key()?;
+
+                                    @if active_key.as_ref().is_some_and(|key| *key == this_key) {
                                         a id="section-item-active" class="section-item" href=(format!("/cs/{group}/{id}")) {(id)}
                                     } @else {
                                         a class="section-item" href=(format!("/cs/{group}/{id}")) {(id)}
@@ -72,7 +66,7 @@ pub(crate) fn sidebar(
                 }
             }
         }
-    }
+    })
 }
 
 pub(crate) fn footer() -> Markup {
