@@ -25,13 +25,14 @@ impl File {
 }
 
 pub(crate) fn load<P: AsRef<Path>>(root: P) -> Vec<File> {
-    WalkDir::new(root.as_ref())
+    let root = root.as_ref();
+    WalkDir::new(root)
         .into_iter()
         .map(|entry| entry.unwrap())
         .filter(|entry| entry.file_type().is_file())
         .map(|entry| entry.into_path())
         .map(|path| File {
-            location: pathdiff::diff_paths(&path, root.as_ref())
+            location: pathdiff::diff_paths(&path, root)
                 .unwrap()
                 .to_string_lossy()
                 .into_owned(),

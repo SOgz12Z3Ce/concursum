@@ -28,6 +28,10 @@ impl File {
         Ok(files)
     }
 
+    pub(crate) fn location(&self) -> &String {
+        &self.location
+    }
+
     pub(crate) fn group(&self) -> Result<&String, Error> {
         let (group, _) = self.root_member()?;
         Ok(group)
@@ -37,7 +41,7 @@ impl File {
         let (_, objects) = self.root_member()?;
         objects.as_array().ok_or_else(|| Error::JsonSchema {
             value: objects.to_owned(),
-            message: "expected value of file root object is an array".to_owned(),
+            message: String::from("expected value of the root object member is an array"),
         })
     }
 
@@ -46,7 +50,7 @@ impl File {
         let Some((group, objects)) = root.iter().next() else {
             return Err(Error::JsonSchema {
                 value: Value::Object(root.to_owned()),
-                message: "expected file root object has one name/value pair".to_owned(),
+                message: String::from("expected root object has one name/value pair"),
             });
         };
         Ok((group, objects))
@@ -55,7 +59,7 @@ impl File {
     fn root(&self) -> Result<&Map<String, Value>, Error> {
         self.content.as_object().ok_or_else(|| Error::JsonSchema {
             value: self.content.to_owned(),
-            message: "expected file root is an object".to_owned(),
+            message: String::from("expected file root is an object"),
         })
     }
 }
