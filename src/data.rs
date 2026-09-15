@@ -3,7 +3,7 @@ pub(crate) mod cs;
 use crate::data::cs::{
     files::{self, File},
     localization::{self, LocalizedObject},
-    object::{Key, Object, Texts},
+    object::{Key, Object},
 };
 use std::{
     collections::{HashMap, HashSet},

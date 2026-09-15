@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{data::cs::object::Object, error::Error};
 use serde_json::{Map, Value};
 
@@ -24,7 +26,7 @@ pub(crate) struct SlotText<'a> {
 pub(crate) struct DeckText<'a> {
     pub(crate) label: Option<&'a str>,
     pub(crate) description: Option<&'a str>,
-    pub(crate) draw_messages: Vec<&'a str>,
+    pub(crate) draw_messages: Option<HashMap<&'a String, &'a str>>,
 }
 
 #[derive(Debug)]
@@ -57,6 +59,14 @@ impl<'a> Object<'a> {
 
         // Slot
         slot = slot_text(properties, "slot")?;
+        slots = slots_text(properties, "slots")?;
+
+        // Internal deck
+        internal_deck = deck_text(properties, "internaldeck")?;
+
+        // Recipes
+        alt = recipes_text(properties, "alt")?;
+        linked = recipes_text(properties, "linked")?;
 
         Ok(Text {
             label,
@@ -118,7 +128,7 @@ fn slots_text<'a>(
         });
     };
 
-    let slots_text= slots
+    let slots = slots
         .iter()
         .map(|slot| {
             let Some(slot) = slot.as_object() else {
@@ -132,7 +142,105 @@ fn slots_text<'a>(
             description = text(slot, "description")?;
             Ok(SlotText { label, description })
         })
-        .collect()
-        ;
-    Ok(Some(slots_text))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(Some(slots))
+}
+
+fn deck_text<'a>(
+    object: &'a Map<String, Value>,
+    field: &str,
+) -> Result<Option<DeckText<'a>>, Error> {
+    let Some(deck) = object.get(field) else {
+        return Ok(None);
+    };
+    let Some(deck) = deck.as_object() else {
+        return Err(Error::JsonSchema {
+            value: deck.to_owned(),
+            message: format!("expected value of \"{field}\" member is an object"),
+        });
+    };
+
+    let DeckText {
+        label,
+        description,
+        draw_messages,
+    };
+    label = text(deck, "label")?;
+    description = text(deck, "description")?;
+    draw_messages = draw_messages_text(deck, "drawmessages")?;
+    Ok(Some(DeckText {
+        label,
+        description,
+        draw_messages,
+    }))
+}
+
+fn draw_messages_text<'a>(
+    object: &'a Map<String, Value>,
+    field: &str,
+) -> Result<Option<HashMap<&'a String, &'a str>>, Error> {
+    let Some(draw_messages) = object.get(field) else {
+        return Ok(None);
+    };
+    let Some(draw_messages) = draw_messages.as_object() else {
+        return Err(Error::JsonSchema {
+            value: draw_messages.to_owned(),
+            message: format!("expected value of \"{field}\" member is an object"),
+        });
+    };
+
+    let draw_messages = draw_messages
+        .iter()
+        .map(|(id, message)| {
+            let Some(message) = message.as_str() else {
+                return Err(Error::JsonSchema {
+                    value: message.to_owned(),
+                    message: format!("expected value of \"{id}\" member is a string"),
+                });
+            };
+            Ok((id, message))
+        })
+        .collect::<Result<HashMap<_, _>, _>>()?;
+    Ok(Some(draw_messages))
+}
+
+fn recipes_text<'a>(
+    object: &'a Map<String, Value>,
+    field: &str,
+) -> Result<Option<Vec<RecipeText<'a>>>, Error> {
+    let Some(recipes) = object.get(field) else {
+        return Ok(None);
+    };
+    let Some(recipes) = recipes.as_array() else {
+        return Err(Error::JsonSchema {
+            value: recipes.to_owned(),
+            message: format!("expected value of \"{field}\" member is an array"),
+        });
+    };
+
+    let recipes = recipes
+        .iter()
+        .map(|recipe| {
+            let Some(recipe) = recipe.as_object() else {
+                return Err(Error::JsonSchema {
+                    value: recipe.to_owned(),
+                    message: format!("expected value of \"{field}\" member is an object"),
+                });
+            };
+            let RecipeText {
+                label,
+                description,
+                start_description,
+            };
+            label = text(recipe, "label")?;
+            description = text(recipe, "description")?;
+            start_description = text(recipe, "startdescription")?;
+            Ok(RecipeText {
+                label,
+                description,
+                start_description,
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(Some(recipes))
 }
