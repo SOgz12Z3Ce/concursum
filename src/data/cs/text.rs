@@ -1,19 +1,56 @@
+use crate::{
+    data::cs::object::{Group, Object},
+    error::Error,
+};
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 
-use crate::{data::cs::object::Object, error::Error};
-use serde_json::{Map, Value};
-
 #[derive(Debug)]
-pub(crate) struct Text<'a> {
-    pub(crate) label: Option<&'a str>,
-    pub(crate) slot: Option<SlotText<'a>>,
-    pub(crate) slots: Option<Vec<SlotText<'a>>>,
-    pub(crate) internal_deck: Option<DeckText<'a>>,
-    pub(crate) alt: Option<Vec<RecipeText<'a>>>,
-    pub(crate) linked: Option<Vec<RecipeText<'a>>>,
-    pub(crate) description: Option<&'a str>,
-    pub(crate) start_description: Option<&'a str>,
-    pub(crate) description_unlocked: Option<&'a str>,
+pub enum Text<'a> {
+    Achievement {
+        label: &'a str,
+        description_unlocked: Option<&'a str>,
+    },
+    Culture,
+    Deck {
+        label: Option<&'a str>,
+        description: Option<&'a str>,
+    },
+    Dictum,
+    Element {
+        label: Option<&'a str>,
+        slots: Option<Vec<SlotText<'a>>>,
+        description: Option<&'a str>,
+    },
+    Ending {
+        label: &'a str,
+        description: &'a str,
+    },
+    Legacy {
+        label: Option<&'a str>,
+        description: &'a str,
+        start_description: Option<&'a str>,
+    },
+    Lever,
+    Portal {
+        label: &'a str,
+        description: &'a str,
+    },
+    Recipe {
+        label: Option<&'a str>,
+        slots: Option<Vec<SlotText<'a>>>,
+        internal_deck: Option<DeckText<'a>>,
+        alt: Option<Vec<RecipeText<'a>>>,
+        linked: Option<Vec<RecipeText<'a>>>,
+        description: Option<&'a str>,
+        start_description: Option<&'a str>,
+    },
+    Setting,
+    Verb {
+        label: &'a str,
+        slot: Option<SlotText<'a>>,
+        description: &'a str,
+    },
 }
 
 #[derive(Debug)]
@@ -39,46 +76,77 @@ pub(crate) struct RecipeText<'a> {
 impl<'a> Object<'a> {
     pub(crate) fn text(&self) -> Result<Text, Error> {
         let properties = self.properties();
-        let Text {
-            label,
-            slot,
-            slots,
-            internal_deck,
-            alt,
-            linked,
-            description,
-            start_description,
-            description_unlocked,
-        };
 
-        // General
-        label = text(properties, "label")?;
-        description = text(properties, "description")?;
-        start_description = text(properties, "startdescription")?;
-        description_unlocked = text(properties, "descriptionunlocked")?;
-
-        // Slot
-        slot = slot_text(properties, "slot")?;
-        slots = slots_text(properties, "slots")?;
-
-        // Internal deck
-        internal_deck = deck_text(properties, "internaldeck")?;
-
-        // Recipes
-        alt = recipes_text(properties, "alt")?;
-        linked = recipes_text(properties, "linked")?;
-
-        Ok(Text {
-            label,
-            slot,
-            slots,
-            internal_deck,
-            alt,
-            linked,
-            description,
-            start_description,
-            description_unlocked,
-        })
+        match self.group()? {
+            Group::Achievement => Ok(Text::Achievement {
+                label: text(properties, "label")?.ok_or_else(|| Error::JsonSchema {
+                    value: Value::Object(properties.to_owned()),
+                    message: String::from("expected achievement object has member 'label'"),
+                })?,
+                description_unlocked: text(properties, "descriptionunlocked")?,
+            }),
+            Group::Culture => Ok(Text::Culture),
+            Group::Deck => Ok(Text::Deck {
+                label: text(properties, "label")?,
+                description: text(properties, "description")?,
+            }),
+            Group::Dictum => Ok(Text::Dictum),
+            Group::Element => Ok(Text::Element {
+                label: text(properties, "label")?,
+                slots: slots_text(properties, "slots")?,
+                description: text(properties, "description")?,
+            }),
+            Group::Ending => Ok(Text::Ending {
+                label: text(properties, "label")?.ok_or_else(|| Error::JsonSchema {
+                    value: Value::Object(properties.to_owned()),
+                    message: String::from("expected ending object has member 'label'"),
+                })?,
+                description: text(properties, "description")?.ok_or_else(|| Error::JsonSchema {
+                    value: Value::Object(properties.to_owned()),
+                    message: String::from("expected ending object has member 'description'"),
+                })?,
+            }),
+            Group::Legacy => Ok(Text::Legacy {
+                label: text(properties, "label")?,
+                description: text(properties, "description")?.ok_or_else(|| Error::JsonSchema {
+                    value: Value::Object(properties.to_owned()),
+                    message: String::from("expected legacy object has member 'description'"),
+                })?,
+                start_description: text(properties, "startdescription")?,
+            }),
+            Group::Lever => Ok(Text::Lever),
+            Group::Portal => Ok(Text::Portal {
+                label: text(properties, "label")?.ok_or_else(|| Error::JsonSchema {
+                    value: Value::Object(properties.to_owned()),
+                    message: String::from("expected portal object has member 'label'"),
+                })?,
+                description: text(properties, "description")?.ok_or_else(|| Error::JsonSchema {
+                    value: Value::Object(properties.to_owned()),
+                    message: String::from("expected portal object has member 'description'"),
+                })?,
+            }),
+            Group::Recipe => Ok(Text::Recipe {
+                label: text(properties, "label")?,
+                slots: slots_text(properties, "slots")?,
+                internal_deck: deck_text(properties, "internaldeck")?,
+                alt: recipes_text(properties, "alt")?,
+                linked: recipes_text(properties, "linked")?,
+                description: text(properties, "description")?,
+                start_description: text(properties, "startdescription")?,
+            }),
+            Group::Setting => Ok(Text::Setting),
+            Group::Verb => Ok(Text::Verb {
+                label: text(properties, "label")?.ok_or_else(|| Error::JsonSchema {
+                    value: Value::Object(properties.to_owned()),
+                    message: String::from("expected verb object has member 'label'"),
+                })?,
+                slot: slot_text(properties, "slot")?,
+                description: text(properties, "description")?.ok_or_else(|| Error::JsonSchema {
+                    value: Value::Object(properties.to_owned()),
+                    message: String::from("expected verb object has member 'description'"),
+                })?,
+            }),
+        }
     }
 }
 

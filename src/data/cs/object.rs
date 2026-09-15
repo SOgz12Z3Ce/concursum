@@ -33,6 +33,10 @@ impl<'a> Object<'a> {
         self.file.location()
     }
 
+    pub(crate) fn key(&self) -> Result<Key, Error> {
+        Ok(Key::new(self.group()?, self.id()?))
+    }
+
     pub(crate) fn properties(&self) -> &Map<String, Value> {
         self.properties
     }
@@ -97,6 +101,10 @@ pub(crate) struct Key<'a> {
 }
 
 impl<'a> Key<'a> {
+    pub(crate) fn new(group: Group, id: &str) -> Key {
+        Key { group, id }
+    }
+
     pub(crate) fn group(&self) -> Group {
         self.group
     }

@@ -1,4 +1,7 @@
-use crate::data::cs::object::{Key, Object};
+use crate::{
+    data::cs::object::{Key, Object},
+    error::Error,
+};
 use std::collections::HashMap;
 
 macro_rules! localization_str {
@@ -23,36 +26,40 @@ pub(crate) static LOCALIZATION_STRS: [LocalizationStr; LOCALIZATION_COUNT] = [
 #[derive(Debug)]
 pub(crate) struct LocalizationStr {
     pub(crate) folder: &'static str,
-    #[allow(unused)]
+    #[allow(unused)] // TODO: Reserved for future usage.
     pub(crate) code: &'static str,
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct LocalizedObject {
-    pub(crate) core: Object,
-    pub(crate) localizations: Localization,
+#[derive(Debug)]
+pub(crate) struct LocalizedObject<'a> {
+    pub(crate) core: Object<'a>,
+    pub(crate) localizations: Localization<'a>,
 }
 
-impl LocalizedObject {
+impl<'a> LocalizedObject<'a> {
     pub(crate) fn from_objects(
-        core: Vec<Object>,
-        localizations: [Vec<Object>; LOCALIZATION_COUNT],
-    ) -> HashMap<Key, LocalizedObject> {
-        let mut core_map: HashMap<Key, Object> = HashMap::new();
-        for object in core.into_iter() {
-            let key = object.key();
-            if let Some(object) = core_map.insert(key, object) {
-                println!("warning: drop object due to repeated key: {object:?}");
+        cores: Vec<Object<'a>>,
+        localizations: Localization<'a>,
+    ) -> Result<HashMap<Key<'a>, Self>, Error> {
+        let cores = {
+            let mut map = HashMap::new();
+            for core in cores {
+                if let Some(object) = map.insert(core.key()?, core) {
+                    println!("warning: drop object due to repeated key: {object:?}");
+                }
             }
-        }
+            map
+        };
 
-        let mut localization_map: HashMap<Key, Localization> = HashMap::new();
-        for (index, localization) in localizations.into_iter().enumerate() {
-            for object in localization {
-                let key = object.key();
-                localization_map.entry(key).or_default()[index] = Some(object);
+        let localizations = {
+            let mut map: HashMap<Key, [Option<Object>; LOCALIZATION_COUNT]> = HashMap::new();
+            for (index, localizations) in localizations.into_iter().enumerate() {
+                for localization in localizations {
+                    map.entry(localization.key()?).or_default()[index] = Some(localization);
+                }
             }
-        }
+            map
+        };
 
         let localization_objects = core_map
             .into_iter()
@@ -127,4 +134,4 @@ impl LocalizedObject {
     }
 }
 
-type Localization = [Option<Object>; LOCALIZATION_COUNT];
+type Localization<'a> = [Vec<Object<'a>>; LOCALIZATION_COUNT];
