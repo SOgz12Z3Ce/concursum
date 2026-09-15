@@ -78,25 +78,25 @@ impl<'a> Object<'a> {
         let properties = self.properties();
 
         match self.group()? {
-            Group::Achievement => Ok(Text::Achievement {
+            Group::Achievements => Ok(Text::Achievement {
                 label: text(properties, "label")?.ok_or_else(|| Error::JsonSchema {
                     value: Value::Object(properties.to_owned()),
                     message: String::from("expected achievement object has member 'label'"),
                 })?,
                 description_unlocked: text(properties, "descriptionunlocked")?,
             }),
-            Group::Culture => Ok(Text::Culture),
-            Group::Deck => Ok(Text::Deck {
+            Group::Cultures => Ok(Text::Culture),
+            Group::Decks => Ok(Text::Deck {
                 label: text(properties, "label")?,
                 description: text(properties, "description")?,
             }),
-            Group::Dictum => Ok(Text::Dictum),
-            Group::Element => Ok(Text::Element {
+            Group::Dicta => Ok(Text::Dictum),
+            Group::Elements => Ok(Text::Element {
                 label: text(properties, "label")?,
                 slots: slots_text(properties, "slots")?,
                 description: text(properties, "description")?,
             }),
-            Group::Ending => Ok(Text::Ending {
+            Group::Endings => Ok(Text::Ending {
                 label: text(properties, "label")?.ok_or_else(|| Error::JsonSchema {
                     value: Value::Object(properties.to_owned()),
                     message: String::from("expected ending object has member 'label'"),
@@ -106,7 +106,7 @@ impl<'a> Object<'a> {
                     message: String::from("expected ending object has member 'description'"),
                 })?,
             }),
-            Group::Legacy => Ok(Text::Legacy {
+            Group::Legacies => Ok(Text::Legacy {
                 label: text(properties, "label")?,
                 description: text(properties, "description")?.ok_or_else(|| Error::JsonSchema {
                     value: Value::Object(properties.to_owned()),
@@ -114,8 +114,8 @@ impl<'a> Object<'a> {
                 })?,
                 start_description: text(properties, "startdescription")?,
             }),
-            Group::Lever => Ok(Text::Lever),
-            Group::Portal => Ok(Text::Portal {
+            Group::Levers => Ok(Text::Lever),
+            Group::Portals => Ok(Text::Portal {
                 label: text(properties, "label")?.ok_or_else(|| Error::JsonSchema {
                     value: Value::Object(properties.to_owned()),
                     message: String::from("expected portal object has member 'label'"),
@@ -125,7 +125,7 @@ impl<'a> Object<'a> {
                     message: String::from("expected portal object has member 'description'"),
                 })?,
             }),
-            Group::Recipe => Ok(Text::Recipe {
+            Group::Recipes => Ok(Text::Recipe {
                 label: text(properties, "label")?,
                 slots: slots_text(properties, "slots")?,
                 internal_deck: deck_text(properties, "internaldeck")?,
@@ -134,8 +134,8 @@ impl<'a> Object<'a> {
                 description: text(properties, "description")?,
                 start_description: text(properties, "startdescription")?,
             }),
-            Group::Setting => Ok(Text::Setting),
-            Group::Verb => Ok(Text::Verb {
+            Group::Settings => Ok(Text::Setting),
+            Group::Verbs => Ok(Text::Verb {
                 label: text(properties, "label")?.ok_or_else(|| Error::JsonSchema {
                     value: Value::Object(properties.to_owned()),
                     message: String::from("expected verb object has member 'label'"),

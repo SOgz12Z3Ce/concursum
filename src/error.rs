@@ -1,3 +1,4 @@
+use crate::data::cs::object::OwnedKey;
 use serde_json::Value;
 use std::{ffi::OsString, io, path::PathBuf};
 use thiserror::Error;
@@ -27,5 +28,8 @@ pub(crate) enum Error {
     JsonSchema { value: Value, message: String },
 
     #[error("bad group: '{0}")]
-    Group(String)
+    Group(String),
+
+    #[error("duplicated localization objects are found: '{0}'")]
+    DuplicatedLocalizationObject(OwnedKey),
 }

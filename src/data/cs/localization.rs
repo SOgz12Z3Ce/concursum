@@ -1,94 +1,75 @@
 use crate::{
-    data::cs::object::{Key, Object},
+    data::cs::object::{Group, Key, Object, OwnedKey},
     error::Error,
 };
 use std::collections::HashMap;
 
-macro_rules! localization_str {
-    ($folder:literal, $code:literal) => {
-        LocalizationStr {
-            folder: $folder,
-            code: $code,
-        }
-    };
-}
-
-pub(crate) static LOCALIZATION_COUNT: usize = 6;
-pub(crate) static LOCALIZATION_STRS: [LocalizationStr; LOCALIZATION_COUNT] = [
-    localization_str!("loc_de", "de"),
-    localization_str!("loc_es", "es"),
-    localization_str!("loc_fr", "fr"),
-    localization_str!("loc_jp", "ja"),
-    localization_str!("loc_ru", "ru"),
-    localization_str!("loc_zh-hans", "zh-Hans"),
-];
-
-#[derive(Debug)]
-pub(crate) struct LocalizationStr {
-    pub(crate) folder: &'static str,
-    #[allow(unused)] // TODO: Reserved for future usage.
-    pub(crate) code: &'static str,
-}
-
 #[derive(Debug)]
 pub(crate) struct LocalizedObject<'a> {
-    pub(crate) core: Object<'a>,
-    pub(crate) localizations: Localization<'a>,
+    core: Object<'a>,
+    localization: Localization<'a>,
 }
 
 impl<'a> LocalizedObject<'a> {
-    pub(crate) fn from_objects(
-        cores: Vec<Object<'a>>,
-        localizations: Localization<'a>,
-    ) -> Result<HashMap<Key<'a>, Self>, Error> {
-        let cores = {
-            let mut map = HashMap::new();
-            for core in cores {
-                if let Some(object) = map.insert(core.key()?, core) {
-                    println!("warning: drop object due to repeated key: {object:?}");
-                }
-            }
-            map
-        };
-
-        let localizations = {
-            let mut map: HashMap<Key, [Option<Object>; LOCALIZATION_COUNT]> = HashMap::new();
-            for (index, localizations) in localizations.into_iter().enumerate() {
-                for localization in localizations {
-                    map.entry(localization.key()?).or_default()[index] = Some(localization);
-                }
-            }
-            map
-        };
-
-        let localization_objects = core_map
-            .into_iter()
-            .map(|(key, object)| {
-                let localizations = localization_map.remove(&key).unwrap_or_default();
-                let localized_object = Self {
-                    core: object,
-                    localizations: localizations,
-                };
-                (key, localized_object)
-            })
-            .collect();
-        println!("warning: drop object due to no core object: {localization_map:?}");
-        localization_objects
+    fn new(core: Object<'a>, localization: Localization<'a>) -> Self {
+        Self { core, localization }
     }
 
-    pub(crate) fn group(&self) -> &String {
-        &self.core.group
+    pub(crate) fn from_objects(
+        cores: Vec<Object<'a>>,
+        localizations: Vec<LocalizationObject<'a>>,
+    ) -> Result<Vec<Self>, Error> {
+        let mut key_localizations: HashMap<OwnedKey, Localization> = HashMap::new();
+        for localization in localizations {
+            key_localizations
+                .entry(localization.key()?.into())
+                .or_default()
+                .add(localization)?;
+        }
+
+        let localized_objects = cores
+            .into_iter()
+            .map(|core| {
+                let localization = key_localizations
+                    .remove(&core.key()?.into())
+                    .unwrap_or_default();
+                Ok(Self { core, localization })
+            })
+            .collect::<Result<_, Error>>()?;
+        if !key_localizations.is_empty() {
+            println!("warning: drop object due to no core object: {key_localizations:?}");
+        }
+        Ok(localized_objects)
+    }
+
+    pub(crate) fn group(&self) -> Result<Group, Error> {
+        self.core.group()
     }
 
     pub(crate) fn location(&self) -> &String {
-        &self.core.location
+        self.core.location()
     }
 
-    pub(crate) fn id(&self) -> &str {
+    pub(crate) fn id(&self) -> Result<&str, Error> {
         self.core.id()
     }
 
-    pub(crate) fn icon(&self) -> Option<String> {
+    pub(crate) fn icon(&self) -> Result<Option<String>, Error> {
+        match self.group()? {
+            Group::Achievements => todo!(),
+            Group::Cultures => todo!(),
+            Group::Decks => todo!(),
+            Group::Dicta => todo!(),
+            Group::Elements => todo!(),
+            Group::Endings => todo!(),
+            Group::Legacies => todo!(),
+            Group::Levers => todo!(),
+            Group::Portals => todo!(),
+            Group::Recipes => todo!(),
+            Group::Settings => todo!(),
+            Group::Verbs => todo!(),
+        }
+
         match self.group().as_str() {
             "achievements" => {
                 Some("".to_owned()) // data needed
@@ -134,4 +115,106 @@ impl<'a> LocalizedObject<'a> {
     }
 }
 
-type Localization<'a> = [Vec<Object<'a>>; LOCALIZATION_COUNT];
+#[derive(Debug, Default)]
+pub(crate) struct Localization<'a> {
+    de: Option<Object<'a>>,
+    es: Option<Object<'a>>,
+    fr: Option<Object<'a>>,
+    ja: Option<Object<'a>>,
+    ru: Option<Object<'a>>,
+    zh_hans: Option<Object<'a>>,
+}
+
+impl<'a> Localization<'a> {
+    #[allow(unused)] // We may not be interested in this language.
+    pub(crate) fn de(&self) -> Option<&Object<'a>> {
+        self.de.as_ref()
+    }
+
+    #[allow(unused)] // We may not be interested in this language.
+    pub(crate) fn es(&self) -> Option<&Object<'a>> {
+        self.es.as_ref()
+    }
+
+    #[allow(unused)] // We may not be interested in this language.
+    pub(crate) fn fr(&self) -> Option<&Object<'a>> {
+        self.fr.as_ref()
+    }
+
+    #[allow(unused)] // We may not be interested in this language.
+    pub(crate) fn ja(&self) -> Option<&Object<'a>> {
+        self.ja.as_ref()
+    }
+
+    #[allow(unused)] // We may not be interested in this language.
+    pub(crate) fn ru(&self) -> Option<&Object<'a>> {
+        self.ru.as_ref()
+    }
+
+    pub(crate) fn zh_hans(&self) -> Option<&Object<'a>> {
+        self.zh_hans.as_ref()
+    }
+
+    pub(crate) fn add(&mut self, localization_object: LocalizationObject<'a>) -> Result<(), Error> {
+        let container = match localization_object.locale {
+            Locale::De => &mut self.de,
+            Locale::Es => &mut self.es,
+            Locale::Fr => &mut self.fr,
+            Locale::Ja => &mut self.ja,
+            Locale::Ru => &mut self.ru,
+            Locale::ZhHans => &mut self.zh_hans,
+        };
+        match container {
+            Some(object) => return Err(Error::DuplicatedLocalizationObject(object.key()?.into())),
+            None => container.insert(localization_object.object),
+        };
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct LocalizationObject<'a> {
+    locale: Locale,
+    object: Object<'a>,
+}
+
+impl<'a> LocalizationObject<'a> {
+    pub(crate) fn new(locale: Locale, object: Object<'a>) -> Self {
+        Self { locale, object }
+    }
+
+    fn key(&self) -> Result<Key, Error> {
+        self.object.key()
+    }
+
+    // fn locale(&self) -> Locale {
+    //     self.locale
+    // }
+
+    // fn object(&self) -> &Object<'a> {
+    //     &self.object
+    // }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Locale {
+    De,
+    Es,
+    Fr,
+    Ja,
+    Ru,
+    ZhHans,
+}
+
+impl Locale {
+    pub(crate) fn folder(&self) -> &'static str {
+        match self {
+            Locale::De => "loc_de",
+            Locale::Es => "loc_es",
+            Locale::Fr => "loc_fr",
+            Locale::Ja => "loc_jp",
+            Locale::Ru => "loc_ru",
+            Locale::ZhHans => "loc_zh-hans",
+        }
+    }
+}

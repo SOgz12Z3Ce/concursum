@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use crate::{data::cs::file::File, error::Error};
 use serde_json::{Map, Value};
@@ -58,18 +58,18 @@ impl<'a> Object<'a> {
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) enum Group {
-    Achievement,
-    Culture,
-    Deck,
-    Dictum,
-    Element,
-    Ending,
-    Legacy,
-    Lever,
-    Portal,
-    Recipe,
-    Setting,
-    Verb,
+    Achievements,
+    Cultures,
+    Decks,
+    Dicta,
+    Elements,
+    Endings,
+    Legacies,
+    Levers,
+    Portals,
+    Recipes,
+    Settings,
+    Verbs,
 }
 
 impl FromStr for Group {
@@ -77,24 +77,43 @@ impl FromStr for Group {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "achievements" => Ok(Self::Achievement),
-            "cultures" => Ok(Self::Culture),
-            "decks" => Ok(Self::Deck),
-            "dicta" => Ok(Self::Dictum),
-            "elements" => Ok(Self::Element),
-            "endings" => Ok(Self::Ending),
-            "legacies" => Ok(Self::Legacy),
-            "levers" => Ok(Self::Lever),
-            "portals" => Ok(Self::Portal),
-            "recipes" => Ok(Self::Recipe),
-            "settings" => Ok(Self::Setting),
-            "verbs" => Ok(Self::Verb),
+            "achievements" => Ok(Self::Achievements),
+            "cultures" => Ok(Self::Cultures),
+            "decks" => Ok(Self::Decks),
+            "dicta" => Ok(Self::Dicta),
+            "elements" => Ok(Self::Elements),
+            "endings" => Ok(Self::Endings),
+            "legacies" => Ok(Self::Legacies),
+            "levers" => Ok(Self::Levers),
+            "portals" => Ok(Self::Portals),
+            "recipes" => Ok(Self::Recipes),
+            "settings" => Ok(Self::Settings),
+            "verbs" => Ok(Self::Verbs),
             _ => Err(Error::Group(s.to_owned())),
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+impl Display for Group {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Achievements => write!(f, "achievements"),
+            Self::Cultures => write!(f, "cultures"),
+            Self::Decks => write!(f, "decks"),
+            Self::Dicta => write!(f, "dicta"),
+            Self::Elements => write!(f, "elements"),
+            Self::Endings => write!(f, "endings"),
+            Self::Legacies => write!(f, "legacies"),
+            Self::Levers => write!(f, "levers"),
+            Self::Portals => write!(f, "portals"),
+            Self::Recipes => write!(f, "recipes"),
+            Self::Settings => write!(f, "settings"),
+            Self::Verbs => write!(f, "verbs"),
+        }
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub(crate) struct Key<'a> {
     group: Group,
     id: &'a str,
@@ -111,5 +130,26 @@ impl<'a> Key<'a> {
 
     pub(crate) fn id(&self) -> &str {
         self.id
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq)]
+pub(crate) struct OwnedKey {
+    group: Group,
+    id: String,
+}
+
+impl<'a> From<Key<'a>> for OwnedKey {
+    fn from(value: Key<'a>) -> Self {
+        Self {
+            group: value.group,
+            id: value.id.to_owned(),
+        }
+    }
+}
+
+impl Display for OwnedKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}/{}", self.group, self.id)
     }
 }
