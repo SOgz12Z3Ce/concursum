@@ -27,7 +27,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let favicon_path = static_dir.join("images/favicon.ico");
 
     let data = Box::new(Data::load(&base_dir)?);
-    let data = Box::leak(data);
+    let data = Box::leak(data); // TODO: Workaround.
     let data_view = data.view()?;
     let search_engine = search::index(&data_view)?;
     let state = Arc::new(Resource {
