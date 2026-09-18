@@ -37,7 +37,10 @@ impl<'a, 'b> LocalizedObject<'a, 'b> {
             })
             .collect::<Result<_, Error>>()?;
         if !key_localizations.is_empty() {
-            println!("warning: drop object due to no core object: {key_localizations:?}");
+            println!("warning: dropping object due to no core object:");
+            for key in key_localizations.keys() {
+                println!("'{key}'")
+            }
         }
         Ok(localized_objects)
     }
