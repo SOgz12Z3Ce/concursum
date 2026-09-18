@@ -28,6 +28,7 @@ impl Data {
         let core = {
             let path = cs_dir.join("core");
             let files = File::load(path)?;
+            let files = filter_legcies(files)?;
             SortedFiles::new(files)?
         };
         let localization = Locale::ALL
@@ -35,6 +36,7 @@ impl Data {
             .map(|locale| {
                 let path = cs_dir.join(locale.folder());
                 let files = File::load(path)?;
+                let files = filter_legcies(files)?;
                 Ok((locale, files))
             })
             .collect::<Result<_, Error>>()?;
@@ -95,6 +97,18 @@ impl Data {
             key_objects,
         })
     }
+}
+
+fn filter_legcies(files: Vec<File>) -> Result<Vec<File>, Error> {
+    let mut buffer = Vec::new();
+    for file in files {
+        let group = file.group()?;
+        if group == "legcies" {
+            continue;
+        }
+        buffer.push(file);
+    }
+    Ok(buffer)
 }
 
 #[derive(Debug)]
