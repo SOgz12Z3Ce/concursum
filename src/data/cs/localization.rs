@@ -6,7 +6,7 @@ use crate::{
     },
     error::{Error, JsonSchemaError},
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 #[derive(Debug)]
 pub(crate) struct LocalizedObject<'a, 'b> {
@@ -125,7 +125,12 @@ impl<'a> Localization<'a> {
             Locale::ZhHans => &mut self.zh_hans,
         };
         match container {
-            Some(object) => return Err(Error::DuplicatedLocalizationObject(object.key()?.into())),
+            Some(object) => {
+                return Err(Error::DuplicatedLocalizationObject {
+                    locale: localization_object.locale,
+                    key: object.key()?.into(),
+                });
+            }
             None => container.insert(localization_object.object),
         };
         Ok(())
@@ -176,6 +181,19 @@ impl Locale {
             Self::Ja => "loc_jp",
             Self::Ru => "loc_ru",
             Self::ZhHans => "loc_zh-hans",
+        }
+    }
+}
+
+impl Display for Locale {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::De => write!(f, "de (Deutsch)"),
+            Self::Es => write!(f, "es (Español)"),
+            Self::Fr => write!(f, "fr (Français)"),
+            Self::Ja => write!(f, "ja (日本語)"),
+            Self::Ru => write!(f, "ru (Русский)"),
+            Self::ZhHans => write!(f, "zh-Hans (简体中文)"),
         }
     }
 }

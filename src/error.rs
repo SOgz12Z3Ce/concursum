@@ -1,4 +1,4 @@
-use crate::data::cs::{group::Group, object::OwnedKey};
+use crate::data::cs::{group::Group, localization::Locale, object::OwnedKey};
 use axum::{http::StatusCode, response::IntoResponse};
 use serde_json::{Map, Value};
 use std::{ffi::OsString, fmt::Display, io, path::PathBuf};
@@ -32,8 +32,8 @@ pub(crate) enum Error {
     #[error("bad group: '{0}")]
     Group(String),
 
-    #[error("duplicated localization objects are found: '{0}'")]
-    DuplicatedLocalizationObject(OwnedKey),
+    #[error("duplicated '{locale}' localization objects are found: '{key}'")]
+    DuplicatedLocalizationObject { locale: Locale, key: OwnedKey },
 
     #[error(transparent)]
     Tantivy(#[from] TantivyError),
