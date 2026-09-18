@@ -24,7 +24,9 @@ impl<'a, 'b> LocalizedObject<'a, 'b> {
             key_localizations
                 .entry(localization_object.key()?)
                 .or_default()
-                .add(localization_object)?;
+                .add(localization_object)
+                .inspect_err(|error| println!("warning: {error}"))
+                .ok();
         }
 
         let localized_objects = cores
