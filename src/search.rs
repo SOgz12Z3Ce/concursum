@@ -29,6 +29,7 @@ pub(crate) struct Fields {
     pub(crate) description: Field,
 }
 
+#[derive(Debug)]
 pub(crate) struct SearchResult {
     pub(crate) index: usize,
     pub(crate) snippets: Vec<Snippet>,
@@ -122,10 +123,13 @@ pub(crate) fn search(
             let label_snippets = doc.get_all(*label_field).into_iter().map(|label| {
                 label_snippet_generator.snippet(label.as_str().expect("label is a string"))
             });
-            let description_snippets = doc.get_all(*label_field).into_iter().map(|description| {
-                description_snippet_generator
-                    .snippet(description.as_str().expect("description is a string"))
-            });
+            let description_snippets =
+                doc.get_all(*description_field)
+                    .into_iter()
+                    .map(|description| {
+                        description_snippet_generator
+                            .snippet(description.as_str().expect("description is a string"))
+                    });
 
             let snippets = label_snippets
                 .chain(description_snippets)
