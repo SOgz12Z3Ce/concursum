@@ -1,4 +1,8 @@
-use crate::{data::cs::localization::LocalizedObject, error::Error};
+use crate::{
+    data::cs::{
+        localization::{LocalizedObject, Summaries}, text::{DeckAddition, RecipeAddition},
+    }, error::Error,
+};
 use maud::{Markup, html};
 
 pub(crate) fn content(object: &LocalizedObject) -> Result<Markup, Error> {
@@ -26,20 +30,120 @@ pub(crate) fn content(object: &LocalizedObject) -> Result<Markup, Error> {
                         onerror=(fallback);
                 }
 
-                (object_fields(object))
+                (texts(&object.summary()?))
             }
         }
     })
 }
 
-pub(crate) fn object_fields(object: &LocalizedObject) -> Markup {
-    // TODO: New content page is comming!
-    let properties = object.core().properties();
+pub(crate) fn texts(object: &Summaries) -> Markup {
+    let zh_hans = object.zh_hans.as_ref().unwrap_or(&object.en_gb); // TODO: Remove this workaround.
     html! {
-        @for (key, value) in properties {
+        @if let Some(label) = zh_hans.label {
             p class="content-field" {
-                strong class="field-title" { (key) "：" }
-                (value)
+                strong class="field-title" { "名称：" }
+                (label)
+            }
+        }
+        @if let Some(description) = zh_hans.description {
+            p class="content-field" {
+                strong class="field-title" { "描述：" }
+                (description)
+            }
+        }
+        @if let Some(slots) = &zh_hans.slots {
+            p class="content-field" {
+                strong class="field-title" { "卡槽：" }
+                ul {
+                    @for slot in slots {
+                        li {
+                            @if let Some(label) = slot.label {
+                                span class="content-subfield" {
+                                    strong class="subfield-title" { "名称：" }
+                                    (label)
+                                }
+                            }
+                            @if let Some(description) = slot.description {
+                                span class="content-subfield" {
+                                    strong class="subfield-title" { "描述：" }
+                                    (description)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        @if let Some(recipes) = &zh_hans.recipes {
+            p class="content-field" {
+                strong class="field-title" { "相关配方：" }
+                ul {
+                    @for recipe in recipes {
+                        li {
+                            @match recipe {
+                                RecipeAddition::This { start_description } => {
+                                    span class="content-subfield" {
+                                        strong class="subfield-title" { "起始描述（自身）：" }
+                                        (start_description)
+                                    }
+                                }
+                                RecipeAddition::Other { label, description, start_description } => {
+                                    @if let Some(label) = label {
+                                        span class="content-subfield" {
+                                            strong class="subfield-title" { "名称：" }
+                                            (label)
+                                        }
+                                    }
+                                    @if let Some(description) = description {
+                                        span class="content-subfield" {
+                                            strong class="subfield-title" { "描述：" }
+                                            (description)
+                                        }
+                                    }
+                                    @if let Some(start_description) = start_description {
+                                        span class="content-subfield" {
+                                            strong class="subfield-title" { "起始描述：" }
+                                            (start_description)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        @if let Some(deck) = &zh_hans.deck {
+            p class="content-field" {
+                strong class="field-title" { "相关配方：" }
+                ul {
+                    li {
+                        @match deck {
+                            DeckAddition::This { draw_messages } => {
+                                span class="content-subfield" {
+                                    strong class="subfield-title" { "抽取时消息：" }
+                                    @for (_, message) in draw_messages {
+                                        (message)
+                                    }
+                                }
+                            }
+                            DeckAddition::Internal { label, description } => {
+                                @if let Some(label) = label {
+                                    span class="content-subfield" {
+                                        strong class="subfield-title" { "名称：" }
+                                        (label)
+                                    }
+                                }
+                                @if let Some(description) = description {
+                                    span class="content-subfield" {
+                                        strong class="subfield-title" { "描述：" }
+                                        (description)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

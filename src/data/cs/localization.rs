@@ -61,11 +61,6 @@ impl<'a, 'b> LocalizedObject<'a, 'b> {
         self.core.icon()
     }
 
-    // TODO: Remove this workaround.
-    pub(crate) fn core(&self) -> &Object<'a> {
-        &self.core
-    }
-
     pub(crate) fn summary(&self) -> Result<Summaries<'_>, Error> {
         Ok(Summaries {
             en_gb: self.core.summary()?,
