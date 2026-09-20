@@ -1,7 +1,9 @@
 use crate::{
     data::cs::{
-        localization::{LocalizedObject, Summaries}, text::{DeckAddition, RecipeAddition},
-    }, error::Error,
+        localization::{LocalizedObject, Summaries},
+        text::{DeckAddition, RecipeAddition},
+    },
+    error::Error,
 };
 use maud::{Markup, html};
 
@@ -27,7 +29,7 @@ pub(crate) fn content(object: &LocalizedObject) -> Result<Markup, Error> {
                     img class=(format!("content-image image-{} manifestation-empty", group))
                         alt="Icon"
                         src=(format!("/static/images/cs/{}", icon))
-                        onerror=(fallback);
+                        onerror=(format!("this.src='{fallback}';"));
                 }
 
                 (texts(&object.summary()?))
