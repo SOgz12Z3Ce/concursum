@@ -1,16 +1,19 @@
 use crate::{data::cs::DataView, error::Error};
 use tantivy::{
-    Index, TantivyDocument,
+    Index,
+    TantivyDocument,
     collector::TopDocs,
     query::QueryParser,
     schema::{
         FAST, Field, IndexRecordOption, STORED, Schema, TextFieldIndexing, TextOptions, Value,
     },
     snippet::{Snippet, SnippetGenerator},
+    // tokenizer::NgramTokenizer,
 };
 use tantivy_jieba::JiebaTokenizer;
 
 static JIEBA_TOKENIZER_NAME: &'static str = "jieba";
+// static NGRAM_TOKENIZER_NAME: &'static str = "chinese_2gram";
 static INDEX_FIELD_NAME: &'static str = "index";
 static LABEL_FIELD_NAME: &'static str = "名称";
 static DESCRIPTION_FIELD_NAME: &'static str = "描述";
@@ -46,6 +49,7 @@ pub(crate) fn index(data_view: &DataView) -> Result<SearchEngine, Error> {
             .set_indexing_options(
                 TextFieldIndexing::default()
                     .set_tokenizer(JIEBA_TOKENIZER_NAME)
+                    // .set_tokenizer(NGRAM_TOKENIZER_NAME)
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions),
             )
             .set_stored();
@@ -57,9 +61,12 @@ pub(crate) fn index(data_view: &DataView) -> Result<SearchEngine, Error> {
         builder.build()
     };
     let index = Index::create_in_ram(schema);
-    index
-        .tokenizers()
-        .register(JIEBA_TOKENIZER_NAME, JiebaTokenizer::default());
+    index.tokenizers().register(
+        JIEBA_TOKENIZER_NAME,
+        JiebaTokenizer::default(),
+        // NGRAM_TOKENIZER_NAME,
+        // NgramTokenizer::new(2, 2, false).unwrap(),
+    );
 
     let mut writer = index.writer(MEMORY_BUDGET)?;
     for (index, object) in data_view.objects().iter().enumerate() {
@@ -100,6 +107,8 @@ pub(crate) fn search(
     } = cs_index;
     let default_fields = vec![*label_field, *description_field];
     let parser = QueryParser::for_index(index, default_fields);
+    // parser.set_field_fuzzy(*label_field, true, 1, true);
+    // parser.set_field_fuzzy(*description_field, true, 1, true);
     let query = parser.parse_query(keywords)?;
 
     // TODO:
