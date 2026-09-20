@@ -1,9 +1,7 @@
 use crate::{
     data::cs::{
-        localization::{LocalizedObject, Summaries},
-        text::{DeckAddition, RecipeAddition},
-    },
-    error::Error,
+        localization::{LocalizedObject, Summaries}, text::{DeckAddition, RecipeAddition, SlotAddition},
+    }, error::Error,
 };
 use maud::{Markup, html};
 
@@ -41,36 +39,16 @@ pub(crate) fn content(object: &LocalizedObject) -> Result<Markup, Error> {
 pub(crate) fn texts(object: &Summaries) -> Markup {
     let zh_hans = object.zh_hans.as_ref().unwrap_or(&object.en_gb); // TODO: Remove this workaround.
     html! {
-        @if let Some(label) = zh_hans.label {
-            p class="content-field" {
-                strong class="field-title" { "名称：" }
-                (label)
-            }
-        }
-        @if let Some(description) = zh_hans.description {
-            p class="content-field" {
-                strong class="field-title" { "描述：" }
-                (description)
-            }
-        }
+        (zh_hans.label.render("名称"))
+        (zh_hans.description.render("描述"))
         @if let Some(slots) = &zh_hans.slots {
             p class="content-field" {
                 strong class="field-title" { "卡槽：" }
                 ul {
                     @for slot in slots {
                         li {
-                            @if let Some(label) = slot.label {
-                                span class="content-subfield" {
-                                    strong class="subfield-title" { "名称：" }
-                                    (label)
-                                }
-                            }
-                            @if let Some(description) = slot.description {
-                                span class="content-subfield" {
-                                    strong class="subfield-title" { "描述：" }
-                                    (description)
-                                }
-                            }
+                            (slot.label.render("名称"))
+                            (slot.description.render("描述"))
                         }
                     }
                 }
@@ -117,7 +95,7 @@ pub(crate) fn texts(object: &Summaries) -> Markup {
         }
         @if let Some(deck) = &zh_hans.deck {
             p class="content-field" {
-                strong class="field-title" { "相关配方：" }
+                strong class="field-title" { "卡组：" }
                 ul {
                     li {
                         @match deck {
@@ -148,5 +126,50 @@ pub(crate) fn texts(object: &Summaries) -> Markup {
                 }
             }
         }
+        @if let Some(legacy) = &zh_hans.legacy {
+            p class="content-field" {
+                strong class="field-title" { "职业：" }
+                ul {
+                    li {
+                        {
+                            span class="content-subfield" {
+                                strong class="subfield-title" { "开始时描述：" }
+                                (legacy.start_description)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+trait Renderer {
+    fn render(&self, field: &str) -> Markup;
+}
+
+impl Renderer for &str {
+    fn render(&self, field: &str) -> Markup {
+        html! {
+            p class="content-field" {
+                strong class="field-title" { (format!("{field}：")) }
+                (self)
+            }
+        }
+    }
+}
+
+impl<T: Renderer> Renderer for Option<T> {
+    fn render(&self, field: &str) -> Markup {
+        let Some(text) = self else {
+            return html! {};
+        };
+        text.render(field)
+    }
+}
+
+impl<'a> Renderer for SlotAddition<'a> {
+    fn render(&self, field: &str) -> Markup {
+        todo!()
     }
 }
