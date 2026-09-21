@@ -124,23 +124,14 @@ pub(crate) struct SortedObjects<'a> {
 
 impl<'a> SortedObjects<'a> {
     pub(crate) fn new<T: IntoIterator<Item = Object<'a>>>(objects: T) -> Result<Self, Error> {
-        let mut objects: Vec<Object> = objects.into_iter().collect();
-        let mut indices: Vec<usize> = {
-            let mut key_indices = objects
-                .iter()
-                .enumerate()
-                .map(|(index, object)| Ok((index, object.key()?)))
-                .collect::<Result<Vec<_>, Error>>()?;
-            key_indices.sort_by(|(_, a), (_, b)| a.cmp(b));
-            key_indices.into_iter().map(|(idx, _)| idx).collect()
-        };
-        for i in 0..objects.len() {
-            while indices[i] != i {
-                let dest = indices[i];
-                objects.swap(i, dest);
-                indices.swap(i, dest);
-            }
-        }
+        let objects: Vec<Object> = objects.into_iter().collect();
+        let keys = objects
+            .iter()
+            .map(Object::key)
+            .collect::<Result<Vec<_>, Error>>()?;
+        let mut objects = keys.iter().zip(objects).collect::<Vec<_>>();
+        objects.sort_by(|(a, _), (b, _)| a.cmp(b));
+        let objects: Vec<Object> = objects.into_iter().map(|(_, object)| object).collect();
         Ok(Self { objects })
     }
 }
