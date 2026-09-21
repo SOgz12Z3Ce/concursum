@@ -3,16 +3,17 @@ mod index;
 mod object;
 mod search;
 
-use crate::data::cs::DataView;
-use crate::data::cs::object::Key;
-use crate::{app::Resource, error::Error};
+use crate::{
+    app::Resource,
+    data::cs::{DataView, object::Key},
+    error::Error,
+};
 use axum::{
     extract::{Path, Query, State},
     response::Html,
 };
 use maud::{DOCTYPE, Markup, html};
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 static KEYWORDS_PARAM_NAME: &'static str = "keywords";
 
