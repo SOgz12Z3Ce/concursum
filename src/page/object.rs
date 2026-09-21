@@ -1,13 +1,18 @@
-use std::collections::HashMap;
-
 use crate::{
     data::cs::{
         localization::{LocalizedObject, Summaries},
+        object::Object,
         text::{DeckAddition, LegacyAddition, RecipeAddition, SlotAddition},
     },
     error::Error,
 };
-use maud::{Markup, html};
+use maud::{Markup, PreEscaped, html};
+use std::collections::HashMap;
+use syntect::{
+    html::{ClassStyle, ClassedHTMLGenerator},
+    parsing::SyntaxSet,
+    util::LinesWithEndings,
+};
 
 pub(crate) fn content(object: &LocalizedObject) -> Result<Markup, Error> {
     let group = object.group()?;
@@ -35,6 +40,13 @@ pub(crate) fn content(object: &LocalizedObject) -> Result<Markup, Error> {
                 }
 
                 (texts(&object.summary()?))
+                hr;
+                "核心："
+                (json(object.core()))
+                @if let Some(zh_hans) = object.localization().zh_hans() {
+                    "简体中文本地化："
+                    (json(zh_hans))
+                }
             }
         }
     })
@@ -194,13 +206,11 @@ impl<'a> Renderer for RecipeAddition<'a> {
 impl<'a> Renderer for DeckAddition<'a> {
     fn render(&self) -> Option<Markup> {
         match self {
-            DeckAddition::This { draw_messages } => {
-                Some(html! {
-                    ul {
-                        (sub_field(("抽取消息", draw_messages)))
-                    }
-                })
-            }
+            DeckAddition::This { draw_messages } => Some(html! {
+                ul {
+                    (sub_field(("抽取消息", draw_messages)))
+                }
+            }),
             DeckAddition::Internal {
                 label: None,
                 description: None,
@@ -222,5 +232,34 @@ impl<'a> Renderer for LegacyAddition<'a> {
                 (sub_field(("开始时描述", self.start_description)))
             }
         })
+    }
+}
+
+fn json(object: &Object) -> Markup {
+    let properties = object.properties();
+    let json =
+        serde_json::to_string_pretty(properties).expect("valid JSON should be dumped successfully");
+
+    let syntax_set = SyntaxSet::load_defaults_newlines();
+    let syntax = syntax_set
+        .find_syntax_by_extension("json")
+        .expect("json syntax exists");
+    let html = {
+        let mut html_generator =
+            ClassedHTMLGenerator::new_with_class_style(syntax, &syntax_set, ClassStyle::Spaced);
+        for line in LinesWithEndings::from(&json) {
+            html_generator
+                .parse_html_for_line_which_includes_newline(line)
+                .expect("valid JSON should be parse successfully");
+        }
+        html_generator.finalize()
+    };
+
+    html! {
+        pre style="white-space: pre-wrap;" {
+            code {
+                (PreEscaped(html)) // Safety: Pure JSON content parsed by trusted crate.
+            }
+        }
     }
 }

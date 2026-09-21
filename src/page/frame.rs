@@ -3,20 +3,34 @@ use crate::{
     error::Error,
 };
 use maud::{Markup, html};
+use syntect::{
+    highlighting::ThemeSet,
+    html::{self, ClassStyle},
+};
 
 pub(crate) fn head(title: &str) -> Markup {
     html! {
         head {
             // TODO: add OG meta labels
-            // TODO: add icon
+            // TODO: Such styles.css should be removed.
             link rel="stylesheet" type="text/css" id="styles" href="/static/styles/styles.css";
             link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Forum|Lato";
             // TODO: add themes
             script defer src="/static/scripts/sidebar.js" {}
             script defer src="/static/scripts/clipboard.min.js" {}
             title { (title) }
+            style {
+                (highlight())
+                "pre { background-color: aliceblue; }"
+            }
         }
     }
+}
+
+fn highlight() -> String {
+    let theme_set = ThemeSet::load_defaults();
+    let theme = &theme_set.themes["InspiredGitHub"];
+    html::css_for_theme_with_class_style(theme, ClassStyle::Spaced).unwrap()
 }
 
 pub(crate) fn header() -> Markup {

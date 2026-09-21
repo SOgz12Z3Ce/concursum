@@ -34,16 +34,16 @@ impl<'a> Object<'a> {
         })
     }
 
+    pub(crate) fn properties(&self) -> &'a Map<String, Value> {
+        self.properties
+    }
+
     pub(crate) fn group(&self) -> Result<Group, Error> {
         self.file.group()?.parse()
     }
 
     pub(crate) fn key(&self) -> Result<Key<'a>, Error> {
         Ok(Key::new(self.group()?, self.id()?))
-    }
-
-    pub(crate) fn properties(&self) -> &'a Map<String, Value> {
-        self.properties
     }
 
     pub(crate) fn id(&self) -> Result<&'a str, JsonSchemaError> {

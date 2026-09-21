@@ -45,6 +45,14 @@ impl<'a, 'b> LocalizedObject<'a, 'b> {
         Ok(localized_objects)
     }
 
+    pub(crate) fn core(&self) -> &Object<'a> {
+        &self.core
+    }
+    
+    pub(crate) fn localization(&self) -> &Localization<'b> {
+        &self.localization
+    }
+
     pub(crate) fn group(&self) -> Result<Group, Error> {
         self.core.group()
     }
