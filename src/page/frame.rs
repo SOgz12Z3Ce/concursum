@@ -52,13 +52,13 @@ pub(crate) fn header() -> Markup {
     }
 }
 
-pub(crate) fn sidebar(data_view: &DataView, active_key: Option<Key>) -> Result<Markup, Error> {
+pub(crate) fn sidebar(data_view: &DataView, active_key: Option<&Key>) -> Result<Markup, Error> {
     Ok(html! {
         div id="sidebar" {
             div id="sections" {
                 @for group in Group::ALL {
                     div class="section-title" { (group) }
-                    div class=(format!("section-list{}", if active_key.as_ref().is_some_and(|key| key.group() == group) {" section-list-opened"} else {""})) {
+                    div class=(format!("section-list{}", if active_key.is_some_and(|key| key.group() == group) {" section-list-opened"} else {""})) {
                         @for location in data_view.file_locations(group) {
                             div class="section-file" {
                                 div class="section-file-title" { (location) }
@@ -68,7 +68,7 @@ pub(crate) fn sidebar(data_view: &DataView, active_key: Option<Key>) -> Result<M
                                     @let id = object.id()?;
                                     @let this_key = object.key()?;
 
-                                    @if active_key.as_ref().is_some_and(|key| *key == this_key) {
+                                    @if active_key.is_some_and(|key| *key == this_key) {
                                         a id="section-item-active" class="section-item" href=(format!("/cs/{group}/{id}")) {(id)}
                                     } @else {
                                         a class="section-item" href=(format!("/cs/{group}/{id}")) {(id)}
