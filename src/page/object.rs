@@ -1,7 +1,11 @@
+use std::collections::HashMap;
+
 use crate::{
     data::cs::{
-        localization::{LocalizedObject, Summaries}, text::{DeckAddition, RecipeAddition, SlotAddition},
-    }, error::Error,
+        localization::{LocalizedObject, Summaries},
+        text::{DeckAddition, LegacyAddition, RecipeAddition, SlotAddition},
+    },
+    error::Error,
 };
 use maud::{Markup, html};
 
@@ -39,137 +43,184 @@ pub(crate) fn content(object: &LocalizedObject) -> Result<Markup, Error> {
 pub(crate) fn texts(object: &Summaries) -> Markup {
     let zh_hans = object.zh_hans.as_ref().unwrap_or(&object.en_gb); // TODO: Remove this workaround.
     html! {
-        (zh_hans.label.render("名称"))
-        (zh_hans.description.render("描述"))
-        @if let Some(slots) = &zh_hans.slots {
+        (field(("名称", zh_hans.label)))
+        (field(("描述", zh_hans.description)))
+        (field(("卡槽", &zh_hans.slots)))
+        (field(("相关配方", &zh_hans.recipes)))
+        (field(("卡组", &zh_hans.deck)))
+        (field(("职业", &zh_hans.legacy)))
+    }
+}
+
+fn field<T: Renderer>(renderer: T) -> Markup {
+    match renderer.render() {
+        Some(content) => html! {
             p class="content-field" {
-                strong class="field-title" { "卡槽：" }
-                ul {
-                    @for slot in slots {
-                        li {
-                            (slot.label.render("名称"))
-                            (slot.description.render("描述"))
-                        }
-                    }
-                }
+                (content)
             }
-        }
-        @if let Some(recipes) = &zh_hans.recipes {
-            p class="content-field" {
-                strong class="field-title" { "相关配方：" }
-                ul {
-                    @for recipe in recipes {
-                        li {
-                            @match recipe {
-                                RecipeAddition::This { start_description } => {
-                                    span class="content-subfield" {
-                                        strong class="subfield-title" { "起始描述（自身）：" }
-                                        (start_description)
-                                    }
-                                }
-                                RecipeAddition::Other { label, description, start_description } => {
-                                    @if let Some(label) = label {
-                                        span class="content-subfield" {
-                                            strong class="subfield-title" { "名称：" }
-                                            (label)
-                                        }
-                                    }
-                                    @if let Some(description) = description {
-                                        span class="content-subfield" {
-                                            strong class="subfield-title" { "描述：" }
-                                            (description)
-                                        }
-                                    }
-                                    @if let Some(start_description) = start_description {
-                                        span class="content-subfield" {
-                                            strong class="subfield-title" { "起始描述：" }
-                                            (start_description)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+        },
+        None => html! {},
+    }
+}
+
+fn sub_field<T: Renderer>(renderer: T) -> Markup {
+    match renderer.render() {
+        Some(content) => html! {
+            li class="content-field" {
+                (content)
             }
-        }
-        @if let Some(deck) = &zh_hans.deck {
-            p class="content-field" {
-                strong class="field-title" { "卡组：" }
-                ul {
-                    li {
-                        @match deck {
-                            DeckAddition::This { draw_messages } => {
-                                span class="content-subfield" {
-                                    strong class="subfield-title" { "抽取时消息：" }
-                                    @for (_, message) in draw_messages {
-                                        (message)
-                                    }
-                                }
-                            }
-                            DeckAddition::Internal { label, description } => {
-                                @if let Some(label) = label {
-                                    span class="content-subfield" {
-                                        strong class="subfield-title" { "名称：" }
-                                        (label)
-                                    }
-                                }
-                                @if let Some(description) = description {
-                                    span class="content-subfield" {
-                                        strong class="subfield-title" { "描述：" }
-                                        (description)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        @if let Some(legacy) = &zh_hans.legacy {
-            p class="content-field" {
-                strong class="field-title" { "职业：" }
-                ul {
-                    li {
-                        {
-                            span class="content-subfield" {
-                                strong class="subfield-title" { "开始时描述：" }
-                                (legacy.start_description)
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        },
+        None => html! {},
     }
 }
 
 trait Renderer {
-    fn render(&self, field: &str) -> Markup;
+    fn render(&self) -> Option<Markup>;
 }
 
-impl Renderer for &str {
-    fn render(&self, field: &str) -> Markup {
-        html! {
-            p class="content-field" {
-                strong class="field-title" { (format!("{field}：")) }
-                (self)
+impl<'a, T: ?Sized + Renderer> Renderer for &'a T {
+    fn render(&self) -> Option<Markup> {
+        (**self).render()
+    }
+}
+
+impl<T: Renderer> Renderer for (&str, T) {
+    fn render(&self) -> Option<Markup> {
+        let (name, renderer) = self;
+        renderer.render().map(|text| {
+            html! {
+                strong class="field-title" { (format!("{name}：")) }
+                (text)
             }
-        }
+        })
     }
 }
 
 impl<T: Renderer> Renderer for Option<T> {
-    fn render(&self, field: &str) -> Markup {
-        let Some(text) = self else {
-            return html! {};
-        };
-        text.render(field)
+    fn render(&self) -> Option<Markup> {
+        match self {
+            Some(renderer) => renderer.render(),
+            None => None,
+        }
+    }
+}
+
+impl<T: Renderer> Renderer for Vec<T> {
+    fn render(&self) -> Option<Markup> {
+        let texts: Vec<Option<Markup>> = self.iter().map(|renderer| renderer.render()).collect();
+        if texts.iter().all(|text| text.is_none()) {
+            return None;
+        }
+        let texts = texts
+            .into_iter()
+            .map(|text| text.unwrap_or(html! {"（无文本）"}));
+        Some(html! {
+            ul {
+                @for text in texts {
+                    li {
+                        (text)
+                    }
+                }
+            }
+        })
+    }
+}
+
+impl Renderer for &str {
+    fn render(&self) -> Option<Markup> {
+        Some(html! {(self)})
+    }
+}
+
+impl Renderer for HashMap<&String, &str> {
+    fn render(&self) -> Option<Markup> {
+        Some(html! {
+            ul {
+                @for (key, value) in self {
+                    li {
+                        (format!("{key} -> {value}"))
+                    }
+                }
+            }
+        })
     }
 }
 
 impl<'a> Renderer for SlotAddition<'a> {
-    fn render(&self, field: &str) -> Markup {
-        todo!()
+    fn render(&self) -> Option<Markup> {
+        match self {
+            Self {
+                label: None,
+                description: None,
+            } => None,
+            Self { label, description } => Some(html! {
+                ul {
+                    (sub_field(("名称", label)))
+                    (sub_field(("描述", description)))
+                }
+            }),
+        }
+    }
+}
+
+impl<'a> Renderer for RecipeAddition<'a> {
+    fn render(&self) -> Option<Markup> {
+        match self {
+            RecipeAddition::This { start_description } => Some(html! {
+                ul {
+                    (sub_field(("（自身）开始时描述", start_description)))
+                }
+            }),
+            RecipeAddition::Other {
+                label: None,
+                description: None,
+                start_description: None,
+            } => None,
+            RecipeAddition::Other {
+                label,
+                description,
+                start_description,
+            } => Some(html! {
+                ul {
+                    (sub_field(("名称", label)))
+                    (sub_field(("描述", description)))
+                    (sub_field(("开始时描述", start_description)))
+                }
+            }),
+        }
+    }
+}
+
+impl<'a> Renderer for DeckAddition<'a> {
+    fn render(&self) -> Option<Markup> {
+        match self {
+            DeckAddition::This { draw_messages } => {
+                Some(html! {
+                    ul {
+                        (sub_field(("抽取消息", draw_messages)))
+                    }
+                })
+            }
+            DeckAddition::Internal {
+                label: None,
+                description: None,
+            } => None,
+            DeckAddition::Internal { label, description } => Some(html! {
+                ul {
+                    (sub_field(("名称", label)))
+                    (sub_field(("描述", description)))
+                }
+            }),
+        }
+    }
+}
+
+impl<'a> Renderer for LegacyAddition<'a> {
+    fn render(&self) -> Option<Markup> {
+        Some(html! {
+            ul {
+                (sub_field(("开始时描述", self.start_description)))
+            }
+        })
     }
 }
