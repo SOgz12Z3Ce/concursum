@@ -29,7 +29,7 @@ pub(crate) enum Error {
     #[error(transparent)]
     JsonSchema(#[from] JsonSchemaError),
 
-    #[error("bad group: '{0}")]
+    #[error("bad group: '{0}'")]
     Group(String),
 
     #[error("duplicated '{locale}' localization objects are found: '{key}'")]
