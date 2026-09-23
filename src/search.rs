@@ -120,7 +120,7 @@ pub(crate) fn search(
     let description_snippet_generator =
         SnippetGenerator::create(&searcher, &query, *description_field)?;
     searcher
-        .search(&query, &TopDocs::with_limit(50_000).order_by_score())?
+        .search(&query, &TopDocs::with_limit(100).order_by_score())?
         .into_iter()
         .map(|(_, address)| {
             let doc: TantivyDocument = searcher.doc(address)?;
