@@ -44,6 +44,12 @@ pub(crate) enum Error {
     #[error(transparent)]
     QueryParser(#[from] QueryParserError),
 
+    #[error("bad query grammar: '{0}'")]
+    QueryGrammar(String),
+
+    #[error("field '{0}' is not supported to search")]
+    NotsupportedQuery(String),
+
     #[error("there is no object with group '{group}' and ID '{id}'")]
     ObjectNotFound { group: Group, id: String },
 }

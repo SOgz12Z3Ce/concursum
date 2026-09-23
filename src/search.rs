@@ -1,14 +1,15 @@
+use std::collections::HashSet;
+
 use crate::{data::cs::DataView, error::Error};
 use tantivy::{
-    Index,
-    TantivyDocument,
+    Index, TantivyDocument,
     collector::TopDocs,
     query::QueryParser,
+    query_grammar::{self, UserInputAst, UserInputLeaf, UserInputLiteral},
     schema::{
         FAST, Field, IndexRecordOption, STORED, Schema, TextFieldIndexing, TextOptions, Value,
     },
     snippet::{Snippet, SnippetGenerator},
-    // tokenizer::NgramTokenizer,
 };
 use tantivy_jieba::JiebaTokenizer;
 
@@ -106,9 +107,31 @@ pub(crate) fn search(
             },
     } = cs_index;
     let default_fields = vec![*label_field, *description_field];
-    let parser = QueryParser::for_index(index, default_fields);
-    // parser.set_field_fuzzy(*label_field, true, 1, true);
-    // parser.set_field_fuzzy(*description_field, true, 1, true);
+    let mut parser = QueryParser::for_index(index, default_fields.clone());
+    let ast = query_grammar::parse_query(keywords)
+        .map_err(|_| Error::QueryGrammar(keywords.to_owned()))?;
+    let literals = literals(&ast);
+    let one_word_fields: HashSet<_> = literals
+        .iter()
+        .filter(|user_input_literal| user_input_literal.phrase.chars().count() == 1)
+        .map(|user_input_literal| match &user_input_literal.field_name {
+            Some(field_name) if field_name == "名称" => Ok(vec![label_field]),
+            Some(field_name) if field_name == "描述" => Ok(vec![description_field]),
+            Some(field_name) if field_name == "index" => {
+                Err(Error::NotsupportedQuery(String::from("index")))
+            }
+            Some(field_some) => Err(Error::NotsupportedQuery(field_some.to_owned())),
+            None => Ok(default_fields.iter().collect()),
+        })
+        .collect::<Result<Vec<_>, Error>>()?
+        .into_iter()
+        .flatten()
+        .collect();
+    for field in default_fields.clone() {
+        if !one_word_fields.contains(&field) {
+            parser.set_field_fuzzy(field, true, 1, true);
+        }
+    }
     let query = parser.parse_query(keywords)?;
 
     // TODO:
@@ -147,4 +170,15 @@ pub(crate) fn search(
             Ok(SearchResult { index, snippets })
         })
         .collect()
+}
+
+fn literals(ast: &UserInputAst) -> Vec<&UserInputLiteral> {
+    match ast {
+        UserInputAst::Clause(items) => items.iter().flat_map(|(_, ast)| literals(ast)).collect(),
+        UserInputAst::Boost(user_input_ast, _) => literals(user_input_ast),
+        UserInputAst::Leaf(user_input_leaf) => match &**user_input_leaf {
+            UserInputLeaf::Literal(user_input_literal) => vec![&user_input_literal],
+            _ => vec![],
+        },
+    }
 }
