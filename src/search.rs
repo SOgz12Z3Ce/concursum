@@ -9,12 +9,13 @@ use tantivy::{
     schema::{
         FAST, Field, IndexRecordOption, STORED, Schema, TextFieldIndexing, TextOptions, Value,
     },
-    snippet::{Snippet, SnippetGenerator},
-    tokenizer::NgramTokenizer,
+    snippet::SnippetGenerator,
+    tokenizer::TextAnalyzer,
 };
-// use tantivy_jieba::JiebaTokenizer;
+use tantivy_jieba::JiebaTokenizer;
 
-static NGRAM_TOKENIZER_NAME: &'static str = "1_2-gram";
+static JIEBA_TOKENIZER_NAME: &'static str = "jieba";
+// static NGRAM_TOKENIZER_NAME: &'static str = "1_2-gram";
 static INDEX_FIELD_NAME: &'static str = "index";
 static LABEL_FIELD_NAME: &'static str = "名称";
 static DESCRIPTION_FIELD_NAME: &'static str = "描述";
@@ -49,8 +50,8 @@ pub(crate) fn index(data_view: &DataView) -> Result<SearchEngine, Error> {
         let text_option = TextOptions::default()
             .set_indexing_options(
                 TextFieldIndexing::default()
-                    // .set_tokenizer(JIEBA_TOKENIZER_NAME)
-                    .set_tokenizer(NGRAM_TOKENIZER_NAME)
+                    .set_tokenizer(JIEBA_TOKENIZER_NAME)
+                    // .set_tokenizer(NGRAM_TOKENIZER_NAME)
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions),
             )
             .set_stored();
@@ -63,10 +64,10 @@ pub(crate) fn index(data_view: &DataView) -> Result<SearchEngine, Error> {
     };
     let index = Index::create_in_ram(schema);
     index.tokenizers().register(
-        // JIEBA_TOKENIZER_NAME,
-        // JiebaTokenizer::default(),
-        NGRAM_TOKENIZER_NAME,
-        NgramTokenizer::new(2, 2, false).unwrap(),
+        JIEBA_TOKENIZER_NAME,
+        JiebaTokenizer::default(),
+        // NGRAM_TOKENIZER_NAME,
+        // NgramTokenizer::new(2, 2, false).unwrap(),
     );
 
     let mut writer = index.writer(MEMORY_BUDGET)?;
@@ -154,10 +155,20 @@ pub(crate) fn search(
         SnippetGenerator::create(&searcher, &query, *description_field)?;
     let label_tokenizer = searcher.index().tokenizer_for_field(*label_field)?;
     let description_tokenizer = searcher.index().tokenizer_for_field(*description_field)?;
-    searcher
+    let label_phrases = label_phrases
+        .iter()
+        .flat_map(|phrase| tokenize(label_tokenizer.clone(), phrase))
+        .collect();
+    let description_phrases = description_phrases
+        .iter()
+        .flat_map(|phrase| tokenize(description_tokenizer.clone(), phrase))
+        .collect();
+
+    let mut results = searcher
         .search(&query, &TopDocs::with_limit(100).order_by_score())?
         .into_iter()
         .map(|(_, address)| {
+            let mut full_match = false;
             let doc: TantivyDocument = searcher.doc(address)?;
             let index = doc
                 .get_first(*index_field)
@@ -168,41 +179,60 @@ pub(crate) fn search(
             let labels = doc
                 .get_all(*label_field)
                 .map(|label| label.as_str().expect("label is a string"));
-            let label_snippets = labels.flat_map(|label| {
-                if label_is_fuzzy {
-                    snippet::fuzzy_snippet(label_tokenizer.clone(), &label_phrases, label)
-                } else {
-                    let snippet: Box<dyn GeneralSnippet> =
-                        Box::new(default_label_snippet_generator.snippet(label));
-                    vec![snippet]
-                    // vec![Box::new(default_label_snippet_generator.snippet(label))]
-                }
-            });
+            let label_snippets = labels
+                .map(|label| {
+                    if label_is_fuzzy {
+                        snippet::fuzzy_snippet(label_tokenizer.clone(), &label_phrases, label)
+                    } else {
+                        let snippet: Box<dyn GeneralSnippet> =
+                            Box::new(default_label_snippet_generator.snippet(label));
+                        (vec![snippet], true)
+                    }
+                })
+                .collect::<Vec<_>>();
+            if label_snippets.iter().any(|(_, full_match)| *full_match) {
+                full_match = true;
+            }
+            let label_snippets = label_snippets.into_iter().flat_map(|(snippet, _)| snippet);
 
             let descriptions = doc
                 .get_all(*description_field)
                 .map(|description| description.as_str().expect("description is a string"));
-            let description_snippets = descriptions.flat_map(|description| {
-                if description_is_fuzzy {
-                    snippet::fuzzy_snippet(
-                        description_tokenizer.clone(),
-                        &description_phrases,
-                        description,
-                    )
-                } else {
-                    let snippet: Box<dyn GeneralSnippet> =
-                        Box::new(default_description_snippet_generator.snippet(description));
-                    vec![snippet]
-                }
-            });
+            let description_snippets = descriptions
+                .map(|description| {
+                    if description_is_fuzzy {
+                        snippet::fuzzy_snippet(
+                            description_tokenizer.clone(),
+                            &description_phrases,
+                            description,
+                        )
+                    } else {
+                        let snippet: Box<dyn GeneralSnippet> =
+                            Box::new(default_description_snippet_generator.snippet(description));
+                        (vec![snippet], true)
+                    }
+                })
+                .collect::<Vec<_>>();
+            if description_snippets
+                .iter()
+                .any(|(_, full_match)| *full_match)
+            {
+                full_match = true;
+            }
+            let description_snippets = description_snippets
+                .into_iter()
+                .flat_map(|(snippet, _)| snippet);
 
             let snippets = label_snippets
                 .chain(description_snippets)
                 .filter(|snippet| !snippet.is_empty())
                 .collect();
-            Ok(SearchResult { index, snippets })
+            Ok((SearchResult { index, snippets }, full_match))
         })
-        .collect()
+        .collect::<Result<Vec<_>, Error>>()?;
+    results.sort_by_key(|(_, full_match)| !*full_match);
+    // println!("{results:#?}");
+    Ok(results.into_iter().map(|(result, _)| result).collect())
 }
 
 fn literals(ast: &UserInputAst) -> Vec<&UserInputLiteral> {
@@ -218,4 +248,14 @@ fn literals(ast: &UserInputAst) -> Vec<&UserInputLiteral> {
 
 fn is_fuzzy(phrases: &Vec<&String>) -> bool {
     phrases.iter().all(|phrase| phrase.chars().count() != 1)
+}
+
+fn tokenize(mut tokenizer: TextAnalyzer, phrase: &str) -> Vec<&str> {
+    let mut token_stream = tokenizer.token_stream(phrase);
+    let mut phrases = Vec::new();
+    while let Some(token) = token_stream.next() {
+        let content = &phrase[token.offset_from..token.offset_to];
+        phrases.push(content);
+    }
+    phrases
 }

@@ -41,7 +41,6 @@ impl GeneralSnippet for FuzzySnippet {
         let mut html = String::new();
         let mut start_from: usize = 0;
 
-        println!("{:?}", self);
         for item in tantivy::snippet::collapse_overlapped_ranges(&self.highlighted) {
             html.push_str(&htmlescape::encode_minimal(
                 &self.fragment[start_from..item.start],
@@ -60,9 +59,10 @@ impl GeneralSnippet for FuzzySnippet {
 
 pub(crate) fn fuzzy_snippet(
     mut tokenizer: TextAnalyzer,
-    phrases: &Vec<&String>,
+    phrases: &Vec<&str>,
     text: &str,
-) -> Vec<Box<dyn GeneralSnippet>> {
+) -> (Vec<Box<dyn GeneralSnippet>>, bool) {
+    let mut full_match = false;
     let mut snippets = Vec::new();
     let mut token_stream = tokenizer.token_stream(text);
     let mut start_offset = 0;
@@ -79,6 +79,9 @@ pub(crate) fn fuzzy_snippet(
         }
 
         let token_content = &text[token.offset_from..token.offset_to];
+        if phrases.iter().any(|phrase| *phrase == token_content) {
+            full_match = true;
+        }
         if phrases
             .iter()
             .any(|phrase| strsim::osa_distance(token_content, phrase) <= 1)
@@ -91,11 +94,12 @@ pub(crate) fn fuzzy_snippet(
         let fragment = (&text[start_offset..]).to_owned();
         snippets.push(FuzzySnippet::new(fragment, highlighted));
     }
-    snippets
+    let snippets = snippets
         .into_iter()
         .map(|snippet| {
             let snippet: Box<dyn GeneralSnippet> = Box::new(snippet);
             snippet
         })
-        .collect()
+        .collect();
+    (snippets, full_match)
 }
