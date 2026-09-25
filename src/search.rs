@@ -1,6 +1,6 @@
-use std::collections::HashSet;
+mod snippet;
 
-use crate::{data::cs::DataView, error::Error};
+use crate::{data::cs::DataView, error::Error, search::snippet::GeneralSnippet};
 use tantivy::{
     Index, TantivyDocument,
     collector::TopDocs,
@@ -10,11 +10,11 @@ use tantivy::{
         FAST, Field, IndexRecordOption, STORED, Schema, TextFieldIndexing, TextOptions, Value,
     },
     snippet::{Snippet, SnippetGenerator},
+    tokenizer::NgramTokenizer,
 };
-use tantivy_jieba::JiebaTokenizer;
+// use tantivy_jieba::JiebaTokenizer;
 
-static JIEBA_TOKENIZER_NAME: &'static str = "jieba";
-// static NGRAM_TOKENIZER_NAME: &'static str = "chinese_2gram";
+static NGRAM_TOKENIZER_NAME: &'static str = "1_2-gram";
 static INDEX_FIELD_NAME: &'static str = "index";
 static LABEL_FIELD_NAME: &'static str = "名称";
 static DESCRIPTION_FIELD_NAME: &'static str = "描述";
@@ -36,7 +36,7 @@ pub(crate) struct Fields {
 #[derive(Debug)]
 pub(crate) struct SearchResult {
     pub(crate) index: usize,
-    pub(crate) snippets: Vec<Snippet>,
+    pub(crate) snippets: Vec<Box<dyn GeneralSnippet>>,
 }
 
 pub(crate) fn index(data_view: &DataView) -> Result<SearchEngine, Error> {
@@ -49,8 +49,8 @@ pub(crate) fn index(data_view: &DataView) -> Result<SearchEngine, Error> {
         let text_option = TextOptions::default()
             .set_indexing_options(
                 TextFieldIndexing::default()
-                    .set_tokenizer(JIEBA_TOKENIZER_NAME)
-                    // .set_tokenizer(NGRAM_TOKENIZER_NAME)
+                    // .set_tokenizer(JIEBA_TOKENIZER_NAME)
+                    .set_tokenizer(NGRAM_TOKENIZER_NAME)
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions),
             )
             .set_stored();
@@ -63,10 +63,10 @@ pub(crate) fn index(data_view: &DataView) -> Result<SearchEngine, Error> {
     };
     let index = Index::create_in_ram(schema);
     index.tokenizers().register(
-        JIEBA_TOKENIZER_NAME,
-        JiebaTokenizer::default(),
-        // NGRAM_TOKENIZER_NAME,
-        // NgramTokenizer::new(2, 2, false).unwrap(),
+        // JIEBA_TOKENIZER_NAME,
+        // JiebaTokenizer::default(),
+        NGRAM_TOKENIZER_NAME,
+        NgramTokenizer::new(2, 2, false).unwrap(),
     );
 
     let mut writer = index.writer(MEMORY_BUDGET)?;
@@ -111,26 +111,35 @@ pub(crate) fn search(
     let ast = query_grammar::parse_query(keywords)
         .map_err(|_| Error::QueryGrammar(keywords.to_owned()))?;
     let literals = literals(&ast);
-    let one_word_fields: HashSet<_> = literals
-        .iter()
-        .filter(|user_input_literal| user_input_literal.phrase.chars().count() == 1)
-        .map(|user_input_literal| match &user_input_literal.field_name {
-            Some(field_name) if field_name == "名称" => Ok(vec![label_field]),
-            Some(field_name) if field_name == "描述" => Ok(vec![description_field]),
-            Some(field_name) if field_name == "index" => {
-                Err(Error::NotsupportedQuery(String::from("index")))
+
+    // Collect phrases by field.
+    let mut label_phrases = Vec::new();
+    let mut description_phrases = Vec::new();
+    for literal in literals {
+        let phrase = &literal.phrase;
+        match &literal.field_name {
+            Some(field_name) if field_name == "名称" => label_phrases.push(phrase),
+            Some(field_name) if field_name == "描述" => description_phrases.push(phrase),
+            Some(field_name) => return Err(Error::NotsupportedQuery(field_name.to_owned())),
+            None => {
+                label_phrases.push(phrase);
+                description_phrases.push(phrase);
             }
-            Some(field_some) => Err(Error::NotsupportedQuery(field_some.to_owned())),
-            None => Ok(default_fields.iter().collect()),
-        })
-        .collect::<Result<Vec<_>, Error>>()?
-        .into_iter()
-        .flatten()
-        .collect();
-    for field in default_fields.clone() {
-        if !one_word_fields.contains(&field) {
-            parser.set_field_fuzzy(field, true, 1, true);
         }
+    }
+    let label_phrases = label_phrases;
+    let description_phrases = description_phrases;
+
+    // Check one word fields.
+    let label_is_fuzzy = is_fuzzy(&label_phrases);
+    let description_is_fuzzy = is_fuzzy(&description_phrases);
+
+    // Set field as fuzzy.
+    if label_is_fuzzy {
+        parser.set_field_fuzzy(*label_field, false, 1, true);
+    }
+    if description_is_fuzzy {
+        parser.set_field_fuzzy(*description_field, false, 1, true);
     }
     let query = parser.parse_query(keywords)?;
 
@@ -139,9 +148,12 @@ pub(crate) fn search(
     // Exact matched docs MUST be collected, while fuzzy matched docs SHOULD be
     // collected with a limit.
     let searcher = index.reader()?.searcher();
-    let label_snippet_generator = SnippetGenerator::create(&searcher, &query, *label_field)?;
-    let description_snippet_generator =
+    let default_label_snippet_generator =
+        SnippetGenerator::create(&searcher, &query, *label_field)?;
+    let default_description_snippet_generator =
         SnippetGenerator::create(&searcher, &query, *description_field)?;
+    let label_tokenizer = searcher.index().tokenizer_for_field(*label_field)?;
+    let description_tokenizer = searcher.index().tokenizer_for_field(*description_field)?;
     searcher
         .search(&query, &TopDocs::with_limit(100).order_by_score())?
         .into_iter()
@@ -152,16 +164,37 @@ pub(crate) fn search(
                 .expect("every document has a index")
                 .as_u64()
                 .expect("index is a usize") as usize; // Since we don't have 4.3B objects.
-            let label_snippets = doc.get_all(*label_field).into_iter().map(|label| {
-                label_snippet_generator.snippet(label.as_str().expect("label is a string"))
+
+            let labels = doc
+                .get_all(*label_field)
+                .map(|label| label.as_str().expect("label is a string"));
+            let label_snippets = labels.flat_map(|label| {
+                if label_is_fuzzy {
+                    snippet::fuzzy_snippet(label_tokenizer.clone(), &label_phrases, label)
+                } else {
+                    let snippet: Box<dyn GeneralSnippet> =
+                        Box::new(default_label_snippet_generator.snippet(label));
+                    vec![snippet]
+                    // vec![Box::new(default_label_snippet_generator.snippet(label))]
+                }
             });
-            let description_snippets =
-                doc.get_all(*description_field)
-                    .into_iter()
-                    .map(|description| {
-                        description_snippet_generator
-                            .snippet(description.as_str().expect("description is a string"))
-                    });
+
+            let descriptions = doc
+                .get_all(*description_field)
+                .map(|description| description.as_str().expect("description is a string"));
+            let description_snippets = descriptions.flat_map(|description| {
+                if description_is_fuzzy {
+                    snippet::fuzzy_snippet(
+                        description_tokenizer.clone(),
+                        &description_phrases,
+                        description,
+                    )
+                } else {
+                    let snippet: Box<dyn GeneralSnippet> =
+                        Box::new(default_description_snippet_generator.snippet(description));
+                    vec![snippet]
+                }
+            });
 
             let snippets = label_snippets
                 .chain(description_snippets)
@@ -181,4 +214,8 @@ fn literals(ast: &UserInputAst) -> Vec<&UserInputLiteral> {
             _ => vec![],
         },
     }
+}
+
+fn is_fuzzy(phrases: &Vec<&String>) -> bool {
+    phrases.iter().all(|phrase| phrase.chars().count() != 1)
 }

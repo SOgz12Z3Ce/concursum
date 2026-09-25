@@ -382,6 +382,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "hex",
+ "htmlescape",
  "image",
  "maud",
  "pathdiff",
@@ -389,6 +390,7 @@ dependencies = [
  "serde-transcode",
  "serde_json",
  "sha2",
+ "strsim",
  "syntect",
  "tantivy",
  "tantivy-jieba",
