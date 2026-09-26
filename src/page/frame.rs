@@ -40,7 +40,11 @@ pub(crate) fn header() -> Markup {
                 img src="/static/images/favicon.png" alt="knock";
                 h1 { "concursum" }
             }
-            form id="search-box" action="/search" method="get" {
+            form style="display: flex; align-items: center" id="search-box" action="/search" method="get" {
+                label style="font-size: 1rem;" {
+                    input type="checkbox" name="fuzzy" value="true" checked;
+                    "模糊搜索"
+                }
                 input type="search"
                       title="Search"
                       name="keywords"
