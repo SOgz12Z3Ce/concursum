@@ -19,7 +19,7 @@ impl GeneralSnippet for Snippet {
 }
 
 #[derive(Debug)]
-struct FuzzySnippet {
+pub(crate) struct FuzzySnippet {
     fragment: String,
     highlighted: Vec<Range<usize>>,
 }
@@ -61,9 +61,15 @@ pub(crate) fn fuzzy_snippet(
     mut tokenizer: TextAnalyzer,
     phrases: &Vec<&str>,
     text: &str,
-) -> (Vec<Box<dyn GeneralSnippet>>, bool) {
-    let mut full_match = false;
+) -> (Vec<FuzzySnippet>, bool) {
     let mut snippets = Vec::new();
+    let mut full_match = false;
+
+    let phrase_tokens: Vec<&str> = phrases
+        .iter()
+        .flat_map(|phrase| tokenize(tokenizer.clone(), phrase))
+        .collect();
+
     let mut token_stream = tokenizer.token_stream(text);
     let mut start_offset = 0;
     let mut end_offset = 0;
@@ -77,15 +83,15 @@ pub(crate) fn fuzzy_snippet(
             }
             start_offset = token.offset_from;
         }
-
         let token_content = &text[token.offset_from..token.offset_to];
-        if phrases.iter().any(|phrase| *phrase == token_content) {
+
+        // Full match.
+        if phrase_tokens.iter().any(|token| *token == token_content) {
             full_match = true;
         }
-        if phrases
-            .iter()
-            .any(|phrase| strsim::osa_distance(token_content, phrase) <= 1)
-        {
+
+        // Highlight.
+        if highlight(&phrase_tokens, token_content) {
             highlighted.push((token.offset_from - start_offset)..(token.offset_to - start_offset));
         }
         end_offset = token.offset_to;
@@ -94,12 +100,27 @@ pub(crate) fn fuzzy_snippet(
         let fragment = (&text[start_offset..]).to_owned();
         snippets.push(FuzzySnippet::new(fragment, highlighted));
     }
-    let snippets = snippets
-        .into_iter()
-        .map(|snippet| {
-            let snippet: Box<dyn GeneralSnippet> = Box::new(snippet);
-            snippet
-        })
-        .collect();
     (snippets, full_match)
+}
+
+fn tokenize(mut tokenizer: TextAnalyzer, phrase: &str) -> Vec<&str> {
+    let mut token_stream = tokenizer.token_stream(phrase);
+    let mut phrases = Vec::new();
+    while let Some(token) = token_stream.next() {
+        let content = &phrase[token.offset_from..token.offset_to];
+        phrases.push(content);
+    }
+    phrases
+}
+
+fn highlight(phrases: &Vec<&str>, token_content: &str) -> bool {
+    for phrase in phrases {
+        if phrase.chars().count() == 1 && *phrase == token_content {
+            return true;
+        }
+        if phrase.chars().count() > 1 && strsim::osa_distance(*phrase, token_content) <= 1 {
+            return true;
+        }
+    }
+    return false;
 }

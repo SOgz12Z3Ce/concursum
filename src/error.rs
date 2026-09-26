@@ -41,6 +41,9 @@ pub(crate) enum Error {
     #[error("search with empty keywords parameter")]
     EmptySearch,
 
+    #[error("cannot fuzzy search one character")]
+    BadFuzzySearch,
+
     #[error(transparent)]
     QueryParser(#[from] QueryParserError),
 
@@ -52,6 +55,12 @@ pub(crate) enum Error {
 
     #[error("there is no object with group '{group}' and ID '{id}'")]
     ObjectNotFound { group: Group, id: String },
+}
+
+impl Error {
+    pub(crate) fn from_query(query: String) -> Self {
+        Self::QueryGrammar(query)
+    }
 }
 
 impl IntoResponse for Error {

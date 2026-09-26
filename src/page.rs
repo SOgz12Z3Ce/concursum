@@ -7,6 +7,7 @@ use crate::{
     app::Resource,
     data::cs::{DataView, object::Key},
     error::Error,
+    search::{exact, fuzzy},
 };
 use axum::{
     extract::{Path, Query, State},
@@ -47,7 +48,16 @@ pub(crate) async fn search<'a>(
     let Some(keywords) = params.get(KEYWORDS_PARAM_NAME) else {
         return Err(Error::EmptySearch);
     };
-    let results = crate::search::search(&resource.search_engine, keywords)?;
+    let fuzzy = match params.get("fuzzy") {
+        Some(fuzzy) => fuzzy.parse().unwrap_or_default(),
+        None => false,
+    };
+
+    let results = if fuzzy {
+        fuzzy::search(&resource.search_engine, keywords)?
+    } else {
+        exact::search(&resource.search_engine, keywords)?
+    };
     Ok(page(
         &resource.data_view,
         None,
