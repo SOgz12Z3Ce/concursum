@@ -3,16 +3,10 @@ use std::ops::Range;
 use tantivy::{snippet::Snippet, tokenizer::TextAnalyzer};
 
 pub(crate) trait GeneralSnippet: Debug {
-    fn is_empty(&self) -> bool;
-
     fn to_html(&self) -> String;
 }
 
 impl GeneralSnippet for Snippet {
-    fn is_empty(&self) -> bool {
-        self.is_empty()
-    }
-
     fn to_html(&self) -> String {
         self.to_html()
     }
@@ -34,9 +28,6 @@ impl FuzzySnippet {
 }
 
 impl GeneralSnippet for FuzzySnippet {
-    fn is_empty(&self) -> bool {
-        self.fragment.len() == 0
-    }
     fn to_html(&self) -> String {
         let mut html = String::new();
         let mut start_from: usize = 0;
